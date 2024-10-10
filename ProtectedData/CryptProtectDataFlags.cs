@@ -1,0 +1,14 @@
+using System;
+
+namespace VaettirNet.Cryptography;
+
+[Flags]
+internal enum CryptProtectDataFlags
+{
+    CRYPTPROTECT_UI_FORBIDDEN = 1,
+    CRYPTPROTECT_LOCAL_MACHINE = 4,
+    CRYPTPROTECT_CRED_SYNC = 8,
+    CRYPTPROTECT_AUDIT = 16, // 0x00000010
+    CRYPTPROTECT_NO_RECOVERY = 32, // 0x00000020
+    CRYPTPROTECT_VERIFY_PROTECTION = 64 // 0x00000040
+}

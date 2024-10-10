@@ -1,3 +1,5 @@
+using System;
+
 namespace SecureShare;
 
 public abstract class SecretValue<TAttributes>

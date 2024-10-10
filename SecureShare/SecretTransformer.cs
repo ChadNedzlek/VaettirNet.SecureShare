@@ -1,68 +1,90 @@
+using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 using JetBrains.Annotations;
+using DataProtectionScope = VaettirNet.Cryptography.DataProtectionScope;
+using ProtectedData = VaettirNet.Cryptography.ProtectedData;
 
 namespace SecureShare;
 
 public class SecretTransformer
 {
-    private static readonly int KeySizeInBytes = 256 / 8;
-    private static readonly int NonceSizeInBytes = AesGcm.NonceByteSizes.MaxSize;
-    private static readonly int TagSizeInBytes = AesGcm.TagByteSizes.MaxSize;
+    private static readonly int s_keySizeInBytes = 256 / 8;
 
-    private readonly byte[] _protectedKey;
+    private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Create();
 
-    private SecretTransformer(byte[] protectedKey)
+    private readonly ConcurrentBag<Aes> _encryptors = new();
+
+    private readonly ImmutableArray<byte> _protectedKey;
+
+    private SecretTransformer(ImmutableArray<byte> protectedKey, int keySize)
     {
         _protectedKey = protectedKey;
-        KeySize = _protectedKey.Length;
+        KeySize = keySize;
     }
 
     public int KeySize { get; }
     public int Version => 1;
     public int CurrentKeyId { get; } = 1;
 
-    private readonly ConcurrentBag<AesGcm> _encryptors = new();
-
     public static SecretTransformer CreateRandom()
     {
-        byte[] key = new byte[KeySizeInBytes];
+        Span<byte> key = stackalloc byte[s_keySizeInBytes];
+        Span<byte> protectedKey = stackalloc byte[300];
         RandomNumberGenerator.Fill(key);
-        return new SecretTransformer(SetKey(key));
+        SetKey(key, protectedKey, out int cb);
+        return new SecretTransformer(protectedKey[..cb].ToImmutableArray(), s_keySizeInBytes);
     }
 
     public static SecretTransformer CreateFromSharedKey(ReadOnlySpan<byte> sharedKey)
     {
-        return new SecretTransformer(SetKey(sharedKey.ToArray()));
+        Span<byte> protectedKey = stackalloc byte[300];
+        SetKey(sharedKey, protectedKey, out int cb);
+        return new SecretTransformer(protectedKey[..cb].ToImmutableArray(), sharedKey.Length);
     }
 
     [MustDisposeResource]
     private Encryptor GetAlgorithm()
     {
-        if (!_encryptors.TryTake(out AesGcm? aesGcm))
+        if (!_encryptors.TryTake(out Aes? aes))
         {
-            Span<byte> key = GetKey();
-            aesGcm = new AesGcm(key, TagSizeInBytes);
+            Span<byte> key = stackalloc byte[KeySize];
+            GetKey(key, out int cb);
+            aes = Aes.Create();
+            aes.Key = key[..cb].ToArray();
             key.Clear();
         }
 
-        return new Encryptor(_encryptors, aesGcm);
+        return new Encryptor(_encryptors, aes);
     }
 
-    private Span<byte> GetKey()
+    private void GetKey(Span<byte> key, out int bytesWritten)
     {
-        if (OperatingSystem.IsWindows()) return ProtectedData.Unprotect(_protectedKey, null, DataProtectionScope.CurrentUser);
-
-        return _protectedKey;
+        if (OperatingSystem.IsWindows())
+        {
+            ProtectedData.Unprotect(_protectedKey.AsSpan(), default, key, DataProtectionScope.CurrentUser, out bytesWritten);
+        }
+        else
+        {
+            _protectedKey.CopyTo(key);
+            bytesWritten = key.Length;
+        }
     }
 
-    private static byte[] SetKey(byte[] key)
+    private static void SetKey(ReadOnlySpan<byte> key, Span<byte> protectedKey, out int bytesWritten)
     {
-        if (OperatingSystem.IsWindows()) return ProtectedData.Protect(key, null, DataProtectionScope.CurrentUser);
-
-        return key;
+        if (OperatingSystem.IsWindows())
+        {
+            ProtectedData.Protect(key, default, protectedKey, DataProtectionScope.CurrentUser, out bytesWritten);
+        }
+        else
+        {
+            key.CopyTo(protectedKey);
+            bytesWritten = key.Length;
+        }
     }
 
     private bool TryProtect(ReadOnlySpan<byte> input, Span<byte> destination, out int cb)
@@ -80,109 +102,35 @@ public class SecretTransformer
         return enc.TryDecrypt(input, destination, out cb);
     }
 
-    private readonly ref struct Encryptor
-    {
-        private readonly ConcurrentBag<AesGcm> _pool;
-        private readonly AesGcm _alg;
-
-        public Encryptor(ConcurrentBag<AesGcm> pool, AesGcm alg)
-        {
-            _pool = pool;
-            _alg = alg;
-        }
-
-        public bool TryEncrypt(ReadOnlySpan<byte> input, Span<byte> output, out int cb)
-        {
-            cb = input.Length + TagSizeInBytes + NonceSizeInBytes;
-            if (cb > output.Length) return false;
-
-            Span<byte> nonce = output[..12];
-            Span<byte> tag = output.Slice(NonceSizeInBytes, TagSizeInBytes);
-            Span<byte> cipherText = output.Slice(NonceSizeInBytes + TagSizeInBytes);
-
-            RandomNumberGenerator.Fill(nonce);
-
-            _alg.Encrypt(nonce, input, cipherText, tag);
-            return true;
-        }
-
-        public bool TryDecrypt(ReadOnlySpan<byte> input, Span<byte> output, out int cb)
-        {
-            cb = input.Length - NonceSizeInBytes - TagSizeInBytes;
-            if (output.Length < cb - TagSizeInBytes)
-            {
-                return false;
-            }
-
-            ReadOnlySpan<byte> nonce = input[..NonceSizeInBytes];
-            ReadOnlySpan<byte> tag = input.Slice(NonceSizeInBytes, TagSizeInBytes);
-            ReadOnlySpan<byte> cipherText = input.Slice(NonceSizeInBytes + TagSizeInBytes);
-
-            _alg.Decrypt(nonce, cipherText, tag, output[..cb]);
-            return true;
-        }
-
-        public void Dispose()
-        {
-            if (_pool.Count < 10)
-                _pool.Add(_alg);
-        }
-    }
-
-    public abstract class UntypedSecret<TAttributes>
-    {
-        protected readonly ClosedSecretValue<TAttributes> Value;
-
-        public UntypedSecret(ClosedSecretValue<TAttributes> value)
-        {
-            Value = value;
-        }
-
-        public abstract UnsealedSecretValue<TAttributes, TProtected> As<TProtected>();
-    }
-
-    private class PooledUntypedSecret<TAttributes> : UntypedSecret<TAttributes>
-    {
-        private readonly SecretTransformer _transformer;
-
-        public PooledUntypedSecret(SecretTransformer transformer, ClosedSecretValue<TAttributes> value) : base(value)
-        {
-            _transformer = transformer;
-        }
-
-        public override UnsealedSecretValue<TAttributes, TProtected> As<TProtected>() =>
-            _transformer.UnsealInternal<TAttributes, TProtected>(Value);
-    }
-    
-    private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Create();
-
     public UntypedSecret<TAttributes> Unseal<TAttributes>(
-        ClosedSecretValue<TAttributes> secret
-    ) => new PooledUntypedSecret<TAttributes>(this, secret);
+        SealedSecretValue<TAttributes> secret
+    )
+    {
+        return new PooledUntypedSecret<TAttributes>(this, secret);
+    }
 
     public UnsealedSecretValue<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
         SealedSecretValue<TAttributes, TProtected> value
-    ) => UnsealInternal<TAttributes, TProtected>(value);
-
-    private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(ClosedSecretValue<TAttributes> value
     )
     {
-        Span<byte> rawBytes = stackalloc byte[100];
-        byte[]? rented = null;
-        if (!TryUnprotect(value.Protected, value.KeyId, value.Version, rawBytes, out int cb))
-        {
-            rawBytes = rented = _arrayPool.Rent(cb);
-            TryUnprotect(value.Protected, value.KeyId, value.Version, rawBytes, out cb);
-        }
+        return UnsealInternal<TAttributes, TProtected>(value);
+    }
+
+    private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
+        SealedSecretValue<TAttributes> value
+    )
+    {
+        using RentedSpan<byte> decryptedValue = Helpers.GrowingSpan(
+            stackalloc byte[100],
+            (Span<byte> s, out int cb) => TryUnprotect(value.Protected.AsSpan(), value.KeyId, value.Version, s, out cb),
+            VaultArrayPool.Pool);
 
         var ret = new UnsealedSecretValue<TAttributes, TProtected>(value.Id,
             value.Attributes,
-            JsonSerializer.Deserialize<TProtected>(rawBytes[..cb])!
+            JsonSerializer.Deserialize<TProtected>(decryptedValue.Span)!
         );
 
-        rawBytes.Clear();
-
-        if (rented != null) _arrayPool.Return(rented);
+        stackalloc byte[100].Clear();
 
         return ret;
     }
@@ -194,14 +142,83 @@ public class SecretTransformer
         var buffer = new ArrayBufferWriter<byte>();
         Utf8JsonWriter writer = new(buffer);
         JsonSerializer.Serialize(writer, secret.Protected);
-        TryProtect(buffer.WrittenSpan, default, out int cb);
-        byte[] data = new byte[cb];
-        TryProtect(buffer.WrittenSpan, data, out _);
-        return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, data, CurrentKeyId, Version);
+        using RentedSpan<byte> data = Helpers.GrowingSpan(
+            stackalloc byte[50],
+            (Span<byte> s, out int cb) => TryProtect(buffer.WrittenSpan, s, out cb),
+            VaultArrayPool.Pool);
+        
+        return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, data.Span.ToImmutableArray(), CurrentKeyId, Version);
     }
 
-    public void ExportKey(Span<byte> sharedKey)
+    public void ExportKey(Span<byte> sharedKey, out int bytesWritten)
     {
-        GetKey().CopyTo(sharedKey);
+        GetKey(sharedKey, out bytesWritten);
+    }
+
+    private readonly ref struct Encryptor
+    {
+        private readonly ConcurrentBag<Aes> _pool;
+        private readonly Aes _alg;
+
+        public Encryptor(ConcurrentBag<Aes> pool, Aes alg)
+        {
+            _pool = pool;
+            _alg = alg;
+        }
+
+        public bool TryEncrypt(ReadOnlySpan<byte> plainText, Span<byte> output, out int cb)
+        {
+            Span<byte> iv = output.Slice(0, _alg.BlockSize / 8);
+            Span<byte> cipherText = output.Slice(_alg.BlockSize / 8);
+            RandomNumberGenerator.Fill(iv);
+            if (_alg.TryEncryptCbc(plainText, iv, cipherText, out int cbCipher))
+            {
+                cb = cbCipher + iv.Length;
+                return true;
+            }
+
+            cb = 0;
+            return false;
+        }
+
+        public bool TryDecrypt(ReadOnlySpan<byte> input, Span<byte> plainText, out int cb)
+        {
+            ReadOnlySpan<byte> iv = input.Slice(0, _alg.BlockSize / 8);
+            ReadOnlySpan<byte> cipherText = input.Slice(_alg.BlockSize / 8);
+            return _alg.TryDecryptCbc(cipherText, iv, plainText, out cb);
+        }
+
+        public void Dispose()
+        {
+            if (_pool.Count < 10)
+                _pool.Add(_alg);
+        }
+    }
+
+    public abstract class UntypedSecret<TAttributes>
+    {
+        protected readonly SealedSecretValue<TAttributes> Value;
+
+        public UntypedSecret(SealedSecretValue<TAttributes> value)
+        {
+            Value = value;
+        }
+
+        public abstract UnsealedSecretValue<TAttributes, TProtected> As<TProtected>();
+    }
+
+    private class PooledUntypedSecret<TAttributes> : UntypedSecret<TAttributes>
+    {
+        private readonly SecretTransformer _transformer;
+
+        public PooledUntypedSecret(SecretTransformer transformer, SealedSecretValue<TAttributes> value) : base(value)
+        {
+            _transformer = transformer;
+        }
+
+        public override UnsealedSecretValue<TAttributes, TProtected> As<TProtected>()
+        {
+            return _transformer.UnsealInternal<TAttributes, TProtected>(Value);
+        }
     }
 }
