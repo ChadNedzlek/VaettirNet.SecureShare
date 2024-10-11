@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Secrets;
 
 public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretValue<TAttributes, TProtected>>
 {

@@ -6,13 +6,26 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using VaettirNet.SecureShare.Secrets;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultData
 {
     private readonly List<VaultClientEntry> _clients;
     private readonly Dictionary<string, List<string>> _typedStores;
+
+    public VaultData() : this([], [])
+    {
+    }
+
+    public VaultData(Dictionary<string, List<string>> typedStores) : this([], typedStores)
+    {
+    }
+
+    public VaultData(List<VaultClientEntry> clients) : this(clients, [])
+    {
+    }
 
     public VaultData(List<VaultClientEntry> clients, Dictionary<string, List<string>> typedStores)
     {

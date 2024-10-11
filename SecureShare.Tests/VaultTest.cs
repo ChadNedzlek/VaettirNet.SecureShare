@@ -1,4 +1,8 @@
 using FluentAssertions;
+using VaettirNet.SecureShare;
+using VaettirNet.SecureShare.Secrets;
+using VaettirNet.SecureShare.Vaults;
+
 // ReSharper disable PossibleNullReferenceException
 
 namespace SecureShare.Tests;

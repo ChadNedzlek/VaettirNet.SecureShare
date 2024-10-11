@@ -1,8 +1,7 @@
 using System;
-using System.Diagnostics;
 using System.Security.Cryptography;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare;
 
 public class MessageEncryptionAlgorithm
 {

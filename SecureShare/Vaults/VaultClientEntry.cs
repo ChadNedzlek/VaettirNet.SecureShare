@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Vaults;
 
 public record VaultClientEntry(
     Guid ClientId,

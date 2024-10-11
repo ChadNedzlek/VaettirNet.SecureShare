@@ -1,4 +1,5 @@
 using FluentAssertions;
+using VaettirNet.SecureShare.Secrets;
 
 namespace SecureShare.Tests;
 

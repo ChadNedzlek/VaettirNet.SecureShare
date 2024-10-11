@@ -1,5 +1,6 @@
 using System.Text;
 using FluentAssertions;
+using VaettirNet.SecureShare;
 
 namespace SecureShare.Tests;
 

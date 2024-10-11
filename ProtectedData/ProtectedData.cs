@@ -108,7 +108,7 @@ public static class ProtectedData
             {
                 DataBlob userDataBlob = new((IntPtr)pInputData, (uint)inputData.Length);
                 DataBlob optionalEntropyBlob = default;
-                if (optionalEntropy != null) optionalEntropyBlob = new DataBlob((IntPtr)pOptionalEntropy, (uint)optionalEntropy.Length);
+                if (!optionalEntropy.IsEmpty) optionalEntropyBlob = new DataBlob((IntPtr)pOptionalEntropy, (uint)optionalEntropy.Length);
 
                 // For .NET Framework compat, we ignore unknown bits in the "scope" value rather than throwing.
                 CryptProtectDataFlags flags = CryptProtectDataFlags.CRYPTPROTECT_UI_FORBIDDEN;

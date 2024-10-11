@@ -1,6 +1,6 @@
 using System;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Secrets;
 
 public abstract class SecretValue<TAttributes>
 {

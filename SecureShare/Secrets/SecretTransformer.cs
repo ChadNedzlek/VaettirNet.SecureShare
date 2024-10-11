@@ -5,10 +5,11 @@ using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 using JetBrains.Annotations;
+using VaettirNet.SecureShare.Vaults;
 using DataProtectionScope = VaettirNet.Cryptography.DataProtectionScope;
 using ProtectedData = VaettirNet.Cryptography.ProtectedData;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Secrets;
 
 public class SecretTransformer
 {

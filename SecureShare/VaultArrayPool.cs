@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare;
 
 internal class VaultArrayPool
 {

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Secrets;
 
 public class SealedSecretValue<TAttributes, TProtected> : SealedSecretValue<TAttributes>
 {

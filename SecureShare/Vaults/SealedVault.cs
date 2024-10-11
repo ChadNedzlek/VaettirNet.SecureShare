@@ -1,6 +1,6 @@
 using System;
 
-namespace SecureShare;
+namespace VaettirNet.SecureShare.Vaults;
 
 public class SealedVault
 {

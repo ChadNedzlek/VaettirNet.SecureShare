@@ -1,4 +1,6 @@
-namespace SecureShare;
+using VaettirNet.SecureShare.Secrets;
+
+namespace VaettirNet.SecureShare.Vaults;
 
 public class UnsealedVault
 {
