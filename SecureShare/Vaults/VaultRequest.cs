@@ -5,7 +5,7 @@ namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultRequest
 {
-    public VaultRequest(Guid clientId, string description, ImmutableArray<byte> publicKey)
+    public VaultRequest(Guid clientId, string description, ReadOnlyMemory<byte> publicKey)
     {
         ClientId = clientId;
         Description = description;
@@ -14,5 +14,5 @@ public class VaultRequest
 
     public Guid ClientId { get; }
     public string Description { get; }
-    public ImmutableArray<byte> PublicKey { get; }
+    public ReadOnlyMemory<byte> PublicKey { get; }
 }

@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -42,7 +40,7 @@ public class VaultManager
         using RentedSpan<byte> encryptedClientKey = Helpers.GrowingSpan(
             stackalloc byte[100],
             (Span<byte> span, ReadOnlySpanTuple<byte, byte, char> state, out int cb) =>
-                _messageEncryptionAlgorithm.TryEncryptFor(state.Span1, state.Span2, state.Span3, request.PublicKey.AsSpan(), span, out cb),
+                _messageEncryptionAlgorithm.TryEncryptFor(state.Span1, state.Span2, state.Span3, request.PublicKey.Span, span, out cb),
             SpanTuple.Create((ReadOnlySpan<byte>)sharedKey, userPrivateKey, password),
             VaultArrayPool.Pool
         );
@@ -50,7 +48,7 @@ public class VaultManager
         return new VaultClientEntry(request.ClientId,
             request.Description,
             request.PublicKey,
-            encryptedClientKey.Span.ToImmutableArray(),
+            encryptedClientKey.Span.ToArray(),
             Vault.ClientId);
     }
 
@@ -82,19 +80,19 @@ public class VaultManager
             throw new ArgumentException("Authorizer is not present");
 
         Span<byte> sharedKey = stackalloc byte[100];
-        byte[]? rented = null;
-        if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.AsSpan(),
+        if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.Span,
             userPrivateKey,
             password,
-            authorizer.PublicKey.AsSpan(),
+            authorizer.PublicKey.Span,
             sharedKey,
             out int cb))
         {
+            byte[]? rented;
             sharedKey = rented = VaultArrayPool.Pool.Rent(2000);
-            if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.AsSpan(),
+            if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.Span,
                 userPrivateKey,
                 password,
-                authorizer.PublicKey.AsSpan(),
+                authorizer.PublicKey.Span,
                 sharedKey,
                 out cb))
             {

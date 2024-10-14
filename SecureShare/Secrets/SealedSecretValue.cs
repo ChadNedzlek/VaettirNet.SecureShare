@@ -1,29 +1,21 @@
 using System;
 using System.Collections.Immutable;
+using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-public class SealedSecretValue<TAttributes, TProtected> : SealedSecretValue<TAttributes>
-{
-    public SealedSecretValue(Guid id, TAttributes attributes, ImmutableArray<byte> @protected, int keyId, int version) : base(id,
-        attributes,
-        @protected,
-        keyId,
-        version)
-    {
-    }
-}
+public record SealedSecretValue<TAttributes, TProtected>(
+    Guid Id,
+    TAttributes Attributes,
+    ReadOnlyMemory<byte> Protected,
+    int KeyId,
+    int Version,
+    ReadOnlyMemory<byte> HashBytes
+)
+    : SealedSecretValue<TAttributes>(Id, Attributes, Protected, KeyId, Version, HashBytes)
+    where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
+    where TProtected : IBinarySerializable<TProtected>;
 
-public class SealedSecretValue<TAttributes> : SecretValue<TAttributes>
-{
-    public SealedSecretValue(Guid id, TAttributes attributes, ImmutableArray<byte> @protected, int keyId, int version) : base(id, attributes)
-    {
-        Protected = @protected;
-        KeyId = keyId;
-        Version = version;
-    }
-
-    public int KeyId { get; }
-    public int Version { get; }
-    public ImmutableArray<byte> Protected { get; }
-}
+public abstract record SealedSecretValue<TAttributes>(Guid Id, TAttributes Attributes, ReadOnlyMemory<byte> Protected, int KeyId, int Version, ReadOnlyMemory<byte> HashBytes)
+    : SecretValue<TAttributes>(Id, Attributes)
+    where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>;

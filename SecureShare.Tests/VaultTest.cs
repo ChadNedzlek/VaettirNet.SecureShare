@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
@@ -22,8 +24,8 @@ public class VaultTest
         Guid secretId;
         {
             UnsealedVault unsealed = aliceVaultManager.Unseal();
-            SecretStore<int, string> store = unsealed.GetOrCreateStore<int, string>();
-            secretId = store.Add(5, "Test Value");
+            SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
+            secretId = store.Add(new() { Value = "Attr Value" }, new() { ProtValue = "Test Value" });
             unsealed.SaveStore(store);
         }
 
@@ -43,10 +45,10 @@ public class VaultTest
         VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateKey[..cbBob]);
         {
             UnsealedVault unsealed = bobManager.Unseal();
-            SecretStore<int, string> store = unsealed.GetOrCreateStore<int, string>();
+            SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
             var secret = store.GetUnsealed(secretId);
-            secret.Attributes.Should().Be(5);
-            secret.Protected.Should().Be("Test Value");
+            secret.Attributes.Value.Should().Be("Attr value");
+            secret.Protected.ProtValue.Should().Be("Test Value");
         }
     }
 }

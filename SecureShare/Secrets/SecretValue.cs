@@ -1,15 +1,7 @@
 using System;
+using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-public abstract class SecretValue<TAttributes>
-{
-    public SecretValue(Guid id, TAttributes attributes)
-    {
-        Id = id;
-        Attributes = attributes;
-    }
-
-    public Guid Id { get; }
-    public TAttributes Attributes { get; }
-}
+public abstract record SecretValue<TAttributes>(Guid Id, TAttributes Attributes)
+    where TAttributes : IJsonSerializable<TAttributes>, IBinarySerializable<TAttributes>;

@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -46,7 +45,7 @@ public class VaultRequestManager
             }
         }
 
-        vault = new VaultRequest(clientId, description, [..publicKey[..cbPublic]]);
+        vault = new VaultRequest(clientId, description, publicKey[..cbPublic].ToArray());
 
         if (rented != null) VaultArrayPool.Pool.Return(rented);
         return true;

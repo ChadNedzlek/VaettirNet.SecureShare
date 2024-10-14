@@ -2,10 +2,13 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 using JetBrains.Annotations;
-using VaettirNet.SecureShare.Vaults;
+using VaettirNet.SecureShare.Serialization;
+
 using DataProtectionScope = VaettirNet.Cryptography.DataProtectionScope;
 using ProtectedData = VaettirNet.Cryptography.ProtectedData;
 
@@ -14,8 +17,6 @@ namespace VaettirNet.SecureShare.Secrets;
 public class SecretTransformer
 {
     private static readonly int s_keySizeInBytes = 256 / 8;
-
-    private readonly ArrayPool<byte> _arrayPool = ArrayPool<byte>.Create();
 
     private readonly ConcurrentBag<Aes> _encryptors = new();
 
@@ -105,50 +106,62 @@ public class SecretTransformer
 
     public UntypedSecret<TAttributes> Unseal<TAttributes>(
         SealedSecretValue<TAttributes> secret
-    )
+    ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     {
         return new PooledUntypedSecret<TAttributes>(this, secret);
     }
 
     public UnsealedSecretValue<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
         SealedSecretValue<TAttributes, TProtected> value
-    )
+    ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
         return UnsealInternal<TAttributes, TProtected>(value);
     }
 
     private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
         SealedSecretValue<TAttributes> value
-    )
+    ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
+        where TProtected : IBinarySerializable<TProtected>
     {
         using RentedSpan<byte> decryptedValue = Helpers.GrowingSpan(
             stackalloc byte[100],
-            (Span<byte> s, out int cb) => TryUnprotect(value.Protected.AsSpan(), value.KeyId, value.Version, s, out cb),
+            (Span<byte> s, out int cb) => TryUnprotect(value.Protected.Span, value.KeyId, value.Version, s, out cb),
             VaultArrayPool.Pool);
 
-        var ret = new UnsealedSecretValue<TAttributes, TProtected>(value.Id,
-            value.Attributes,
-            JsonSerializer.Deserialize<TProtected>(decryptedValue.Span)!
-        );
-
-        stackalloc byte[100].Clear();
-
-        return ret;
+        return new (value.Id, value.Attributes, TProtected.GetBinarySerializer().Deserialize(decryptedValue.Span));
     }
 
     public SealedSecretValue<TAttributes, TProtected> Seal<TAttributes, TProtected>(
         UnsealedSecretValue<TAttributes, TProtected> secret
-    )
+    ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
-        var buffer = new ArrayBufferWriter<byte>();
-        Utf8JsonWriter writer = new(buffer);
-        JsonSerializer.Serialize(writer, secret.Protected);
-        using RentedSpan<byte> data = Helpers.GrowingSpan(
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> stackBuffer = stackalloc byte[50];
+        using RentedSpan<byte> attr = Helpers.GrowingSpan(stackBuffer,
+            (Span<byte> s, out int cb) => TAttributes.GetBinarySerializer().TrySerialize(secret.Attributes, s, out cb),
+            VaultArrayPool.Pool);
+        hash.AppendData(MemoryMarshal.AsBytes([attr.Span.Length]));
+        hash.AppendData(attr.Span);
+        
+        using RentedSpan<byte> serialized = Helpers.GrowingSpan(stackBuffer,
+            (Span<byte> s, out int cb) => TProtected.GetBinarySerializer().TrySerialize(secret.Protected, s, out cb),
+            VaultArrayPool.Pool);
+        hash.AppendData(MemoryMarshal.AsBytes([serialized.Span.Length]));
+        hash.AppendData(serialized.Span);
+        
+        Memory<byte> hashBytes = new byte[SHA256.HashSizeInBytes];
+        if (!hash.TryGetHashAndReset(hashBytes.Span, out int cbHash) || cbHash != SHA256.HashSizeInBytes)
+        {
+            throw new InvalidOperationException();
+        }
+
+        using RentedSpan<byte> encrypted = Helpers.GrowingSpan(
             stackalloc byte[50],
-            (Span<byte> s, out int cb) => TryProtect(buffer.WrittenSpan, s, out cb),
+            (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),
+            serialized.Span,
             VaultArrayPool.Pool);
         
-        return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, data.Span.ToImmutableArray(), CurrentKeyId, Version);
+        return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, Version, hashBytes);
     }
 
     public void ExportKey(Span<byte> sharedKey, out int bytesWritten)
@@ -196,30 +209,20 @@ public class SecretTransformer
         }
     }
 
-    public abstract class UntypedSecret<TAttributes>
+    public abstract record UntypedSecret<TAttributes>(SealedSecretValue<TAttributes> Value)
+        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     {
-        protected readonly SealedSecretValue<TAttributes> Value;
-
-        public UntypedSecret(SealedSecretValue<TAttributes> value)
-        {
-            Value = value;
-        }
-
-        public abstract UnsealedSecretValue<TAttributes, TProtected> As<TProtected>();
+        public abstract UnsealedSecretValue<TAttributes, TProtected> As<TProtected>()
+            where TProtected : IBinarySerializable<TProtected>;
     }
 
-    private class PooledUntypedSecret<TAttributes> : UntypedSecret<TAttributes>
+    private record PooledUntypedSecret<TAttributes>(SecretTransformer Transformer, SealedSecretValue<TAttributes> Value)
+        : UntypedSecret<TAttributes>(Value)
+        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     {
-        private readonly SecretTransformer _transformer;
-
-        public PooledUntypedSecret(SecretTransformer transformer, SealedSecretValue<TAttributes> value) : base(value)
-        {
-            _transformer = transformer;
-        }
-
         public override UnsealedSecretValue<TAttributes, TProtected> As<TProtected>()
         {
-            return _transformer.UnsealInternal<TAttributes, TProtected>(Value);
+            return Transformer.UnsealInternal<TAttributes, TProtected>(Value);
         }
     }
 }
