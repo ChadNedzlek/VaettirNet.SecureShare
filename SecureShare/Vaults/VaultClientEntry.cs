@@ -6,6 +6,8 @@ namespace VaettirNet.SecureShare.Vaults;
 public record VaultClientEntry(
     Guid ClientId,
     string Description,
-    ReadOnlyMemory<byte> PublicKey,
+    ReadOnlyMemory<byte> EncryptionKey,
+    ReadOnlyMemory<byte> SigningKey,
     ReadOnlyMemory<byte> EncryptedSharedKey,
-    Guid AuthorizedByClientId);
+    Guid AuthorizedByClientId
+);

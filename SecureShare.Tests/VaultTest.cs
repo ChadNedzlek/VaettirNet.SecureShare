@@ -14,10 +14,7 @@ public class VaultTest
     [Test]
     public void SealUnseal()
     {
-        Span<byte> alicePrivateKey = stackalloc byte[250];
-        VaultManager.TryInitialize("Alice", alicePrivateKey, out int aliceCb, out VaultManager aliceVaultManager)
-            .Should()
-            .BeTrue();
+        var aliceVaultManager = VaultManager.Initialize("Alice", out var aliceInfo);
         aliceVaultManager.Vault.Data.TryGetClient(aliceVaultManager.Vault.ClientId, out VaultClientEntry aliceEntry).Should().BeTrue();
         aliceEntry.Description.Should().Be("Alice");
         aliceEntry.AuthorizedByClientId.Should().Be(aliceVaultManager.Vault.ClientId);
@@ -29,25 +26,22 @@ public class VaultTest
             unsealed.SaveStore(store);
         }
 
-        Span<byte> bobPrivateKey = stackalloc byte[250];
-        MessageEncryptionAlgorithm messageAlg = new();
+        VaultCryptographyAlgorithm messageAlg = new();
         VaultRequestManager vaultRequestManager = new(messageAlg);
-        vaultRequestManager.TryCreateRequest("Bob's Client", bobPrivateKey, out int cbBob, out VaultRequest bobRequest)
-            .Should()
-            .BeTrue();
+        var bobRequest = vaultRequestManager.CreateRequest("Bob's Client", out var bobPrivateInfo);
 
-        aliceVaultManager.AddAuthenticatedClient(alicePrivateKey[..aliceCb], bobRequest);
+        aliceVaultManager.AddAuthenticatedClient(aliceInfo.EncryptionKey.Span, bobRequest);
         aliceVaultManager.Vault.Data.TryGetClient(bobRequest.ClientId, out VaultClientEntry bobEntry).Should().BeTrue();
         bobEntry.Description.Should().Be("Bob's Client");
         bobEntry.AuthorizedByClientId.Should().Be(aliceVaultManager.Vault.ClientId);
-        bobEntry.PublicKey.Should().BeEquivalentTo(bobRequest.PublicKey);
+        bobEntry.EncryptionKey.Should().BeEquivalentTo(bobRequest.EncryptionKey);
 
-        VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateKey[..cbBob]);
+        VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateInfo.EncryptionKey.Span);
         {
             UnsealedVault unsealed = bobManager.Unseal();
             SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
             var secret = store.GetUnsealed(secretId);
-            secret.Attributes.Value.Should().Be("Attr value");
+            secret.Attributes.Value.Should().Be("Attr Value");
             secret.Protected.ProtValue.Should().Be("Test Value");
         }
     }

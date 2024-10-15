@@ -6,13 +6,13 @@ namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultManager
 {
-    private readonly MessageEncryptionAlgorithm _messageEncryptionAlgorithm;
+    private readonly VaultCryptographyAlgorithm _vaultCryptographyAlgorithm;
     private readonly SecretTransformer _transformer;
 
-    public VaultManager(SecretTransformer transformer, MessageEncryptionAlgorithm messageEncryptionAlgorithm, SealedVault vault)
+    public VaultManager(SecretTransformer transformer, VaultCryptographyAlgorithm vaultCryptographyAlgorithm, SealedVault vault)
     {
         _transformer = transformer;
-        _messageEncryptionAlgorithm = messageEncryptionAlgorithm;
+        _vaultCryptographyAlgorithm = vaultCryptographyAlgorithm;
         Vault = vault;
     }
 
@@ -23,14 +23,14 @@ public class VaultManager
         AddAuthenticatedClient(userPrivateKey, default, request);
     }
 
-    public VaultClientEntry SignRequest(
+    public VaultClientEntry ApproveRequest(
         ReadOnlySpan<byte> userPrivateKey,
         VaultRequest request)
     {
-        return SignRequest(userPrivateKey, default, request);
+        return ApproveRequest(userPrivateKey, default, request);
     }
 
-    public VaultClientEntry SignRequest(
+    public VaultClientEntry ApproveRequest(
         ReadOnlySpan<byte> userPrivateKey,
         ReadOnlySpan<char> password,
         VaultRequest request)
@@ -39,15 +39,16 @@ public class VaultManager
         _transformer.ExportKey(sharedKey, out _);
         using RentedSpan<byte> encryptedClientKey = Helpers.GrowingSpan(
             stackalloc byte[100],
-            (Span<byte> span, ReadOnlySpanTuple<byte, byte, char> state, out int cb) =>
-                _messageEncryptionAlgorithm.TryEncryptFor(state.Span1, state.Span2, state.Span3, request.PublicKey.Span, span, out cb),
-            SpanTuple.Create((ReadOnlySpan<byte>)sharedKey, userPrivateKey, password),
+            (Span<byte> span, RefTuple<ReadOnlySpan<byte>, ReadOnlySpan<byte>, ReadOnlySpan<char>> state, out int cb) =>
+                _vaultCryptographyAlgorithm.TryEncryptFor(state.Item1, state.Item2, state.Item3, request.EncryptionKey.Span, span, out cb),
+            RefTuple.Create((ReadOnlySpan<byte>)sharedKey, userPrivateKey, password),
             VaultArrayPool.Pool
         );
 
         return new VaultClientEntry(request.ClientId,
             request.Description,
-            request.PublicKey,
+            request.EncryptionKey,
+            request.SigningKey,
             encryptedClientKey.Span.ToArray(),
             Vault.ClientId);
     }
@@ -58,7 +59,7 @@ public class VaultManager
         VaultRequest request
     )
     {
-        Vault.Data.AddClient(SignRequest(userPrivateKey, password, request));
+        Vault.Data.AddClient(ApproveRequest(userPrivateKey, password, request));
     }
 
     public UnsealedVault Unseal()
@@ -67,7 +68,7 @@ public class VaultManager
     }
 
     public static VaultManager Import(
-        MessageEncryptionAlgorithm messageAlg,
+        VaultCryptographyAlgorithm messageAlg,
         SealedVault vault,
         ReadOnlySpan<byte> userPrivateKey,
         ReadOnlySpan<char> password = default
@@ -83,7 +84,7 @@ public class VaultManager
         if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.Span,
             userPrivateKey,
             password,
-            authorizer.PublicKey.Span,
+            authorizer.EncryptionKey.Span,
             sharedKey,
             out int cb))
         {
@@ -92,7 +93,7 @@ public class VaultManager
             if (!messageAlg.TryDecryptFrom(clientEntry.EncryptedSharedKey.Span,
                 userPrivateKey,
                 password,
-                authorizer.PublicKey.Span,
+                authorizer.EncryptionKey.Span,
                 sharedKey,
                 out cb))
             {
@@ -104,39 +105,25 @@ public class VaultManager
         return new VaultManager(SecretTransformer.CreateFromSharedKey(sharedKey[..cb]), messageAlg, vault);
     }
 
-    public static bool TryInitialize(
-        string clientDescription,
-        Span<byte> privateKey,
-        out int cb,
-        [NotNullWhen(true)] out VaultManager? manager
-    )
+    public static VaultManager Initialize(string clientDescription, out PrivateClientInfo privateInfo)
     {
-        return TryInitialize(clientDescription, privateKey, default, out cb, out manager);
+        return Initialize(clientDescription, default, out privateInfo);
     }
 
-    public static bool TryInitialize(
-        string clientDescription,
-        Span<byte> privateKey,
-        ReadOnlySpan<char> password,
-        out int cb,
-        [NotNullWhen(true)] out VaultManager? manager
-    )
+    public static VaultManager Initialize(string clientDescription, ReadOnlySpan<char> password, out PrivateClientInfo privateInfo)
     {
-        MessageEncryptionAlgorithm encryptionAlgorithm = new();
+        VaultCryptographyAlgorithm encryptionAlgorithm = new();
         var requestManager = new VaultRequestManager(encryptionAlgorithm);
-        if (!requestManager.TryCreateRequest(clientDescription, privateKey, out cb, out var request))
-        {
-            manager = null;
-            return false;
-        }
+        var request = requestManager.CreateRequest(clientDescription, out privateInfo);
 
         SecretTransformer transformer = SecretTransformer.CreateRandom();
-        manager = new VaultManager(transformer,
+        var manager = new VaultManager(
+            transformer,
             encryptionAlgorithm,
-            new SealedVault(new VaultData(),request.ClientId)
-            );
-        VaultClientEntry clientEntry = manager.SignRequest(privateKey, password, request);
+            new SealedVault(new VaultData(), request.ClientId)
+        );
+        VaultClientEntry clientEntry = manager.ApproveRequest(privateInfo.EncryptionKey.Span, password, request);
         manager.Vault.Data.AddClient(clientEntry);
-        return true;
+        return manager;
     }
 }

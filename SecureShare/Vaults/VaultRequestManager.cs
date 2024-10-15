@@ -1,53 +1,51 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 
 namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultRequestManager
 {
-    private readonly MessageEncryptionAlgorithm _encryptionAlgorithm;
+    private readonly VaultCryptographyAlgorithm _encryptionAlgorithm;
 
-    public VaultRequestManager(MessageEncryptionAlgorithm encryptionAlgorithm)
+    public VaultRequestManager(VaultCryptographyAlgorithm encryptionAlgorithm)
     {
         _encryptionAlgorithm = encryptionAlgorithm;
     }
 
-    public bool TryCreateRequest(
-        string description,
-        Span<byte> privateKey,
-        out int cb,
-        [MaybeNullWhen(false)] out VaultRequest client
-    )
+    public VaultRequest CreateRequest(string description, out PrivateClientInfo privateInfo)
     {
-        return TryCreateRequest(privateKey, description, default, out cb, out client);
+        return CreateRequest(description, default, out privateInfo);
     }
 
-    public bool TryCreateRequest(
-        Span<byte> privateKey,
-        string description,
-        ReadOnlySpan<char> password,
-        out int cb,
-        [MaybeNullWhen(false)] out VaultRequest vault
-    )
+    public VaultRequest CreateRequest(string description, ReadOnlySpan<char> password, out PrivateClientInfo privateInfo)
     {
+        ECDsa dsa = ECDsa.Create();
         Guid clientId = Guid.NewGuid();
-        Span<byte> publicKey = stackalloc byte[300];
-        byte[]? rented = null;
-        // We don't want to ues "Helpers.GrowingSpan"
-        if (!_encryptionAlgorithm.TryCreate(password, privateKey, out cb, publicKey, out int cbPublic))
-        {
-            publicKey = rented = VaultArrayPool.Pool.Rent(2000);
-            if (!_encryptionAlgorithm.TryCreate(password, privateKey, out cb, publicKey, out cbPublic))
-            {
-                VaultArrayPool.Pool.Return(rented);
-                vault = null;
-                return false;
-            }
-        }
+        _encryptionAlgorithm.Create(password, out privateInfo, out var publicInfo);
+        return new VaultRequest(clientId, description, publicInfo.EncryptionKey, publicInfo.SigningKey);
+    }
+}
 
-        vault = new VaultRequest(clientId, description, publicKey[..cbPublic].ToArray());
+public struct PrivateClientInfo
+{
+    public readonly ReadOnlyMemory<byte> EncryptionKey;
+    public readonly ReadOnlyMemory<byte> SigningKey;
 
-        if (rented != null) VaultArrayPool.Pool.Return(rented);
-        return true;
+    public PrivateClientInfo(ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey)
+    {
+        EncryptionKey = encryptionKey;
+        SigningKey = signingKey;
+    }
+}
+public struct PublicClientInfo
+{
+    public readonly ReadOnlyMemory<byte> EncryptionKey;
+    public readonly ReadOnlyMemory<byte> SigningKey;
+
+    public PublicClientInfo(ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey)
+    {
+        EncryptionKey = encryptionKey;
+        SigningKey = signingKey;
     }
 }

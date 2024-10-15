@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -28,24 +27,17 @@ public class TypedVault
 public class VaultData
 {
     private readonly List<VaultClientEntry> _clients;
+    private readonly List<BlockedVaultClientEntry> _blockedClients;
     private readonly Dictionary<(Type, Type), TypedVault> _vaults;
 
-    public VaultData() : this([], [])
+    public VaultData(
+        IEnumerable<VaultClientEntry>? clients = null,
+        IEnumerable<BlockedVaultClientEntry>? blockedClients = null,
+        IEnumerable<TypedVault>? vaults = null)
     {
-    }
-
-    public VaultData(IEnumerable<TypedVault> vaults) : this([], vaults)
-    {
-    }
-
-    public VaultData(List<VaultClientEntry> clients) : this(clients, [])
-    {
-    }
-
-    public VaultData(List<VaultClientEntry> clients, IEnumerable<TypedVault> vaults)
-    {
-        _clients = clients;
-        _vaults = vaults.ToDictionary(v => (v.AttributeType, v.ProtectedType));
+        _clients = clients?.ToList() ?? [];
+        _blockedClients = blockedClients?.ToList() ?? [];
+        _vaults = vaults?.ToDictionary(v => (v.AttributeType, v.ProtectedType)) ?? [];
     }
 
     public IEnumerable<VaultClientEntry> Clients => _clients.AsReadOnly();
@@ -53,6 +45,12 @@ public class VaultData
     public void AddClient(VaultClientEntry client)
     {
         _clients.Add(client);
+    }
+
+    public void BlockClient(BlockedVaultClientEntry blocked)
+    {
+        _clients.RemoveAll(c => c.ClientId == blocked.ClientId);
+        _blockedClients.Add(blocked);
     }
 
     public bool TryGetClient(Guid id, [MaybeNullWhen(false)] out VaultClientEntry client)
@@ -87,6 +85,6 @@ public class VaultData
 
     public ReadOnlyMemory<byte> GetPublicKey(Guid clientId)
     {
-        return _clients.FirstOrDefault(c => c.ClientId == clientId)?.PublicKey ?? throw new KeyNotFoundException();
+        return _clients.FirstOrDefault(c => c.ClientId == clientId)?.EncryptionKey ?? throw new KeyNotFoundException();
     }
 }

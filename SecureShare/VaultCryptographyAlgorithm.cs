@@ -1,9 +1,10 @@
 using System;
 using System.Security.Cryptography;
+using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
 
-public class MessageEncryptionAlgorithm
+public class VaultCryptographyAlgorithm
 {
     public bool TryEncryptFor(
         ReadOnlySpan<byte> plainText,
@@ -86,35 +87,73 @@ public class MessageEncryptionAlgorithm
         return aes.TryDecryptCbc(cipherText, iv, plainText, out bytesWritten);
     }
 
-    public bool TryCreate(Span<byte> privateKey, out int cbPrivate, Span<byte> publicKey, out int cbPublic)
-    {
-        return TryCreate(default, privateKey, out cbPrivate, publicKey, out cbPublic);
-    }
+    public void Create(out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo) => Create(default, out privateInfo, out publicInfo);
 
-    public bool TryCreate(ReadOnlySpan<char> password, Span<byte> privateKey, out int cbPrivate, Span<byte> publicKey, out int cbPublic)
+    public void Create(ReadOnlySpan<char> password, out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo)
     {
-        using ECDiffieHellman ecc = ECDiffieHellman.Create();
+        using ECDiffieHellman enc = ECDiffieHellman.Create();
+        byte[] encryptionPrivateKeyBytes = new byte[200];
+        int cbEncryptionPrivateKey;
         if (password.IsEmpty)
         {
-            if (!ecc.TryExportPkcs8PrivateKey(privateKey, out cbPrivate))
+            while (!enc.TryExportPkcs8PrivateKey(encryptionPrivateKeyBytes, out cbEncryptionPrivateKey))
             {
-                cbPublic = 0;
-                return false;
+                encryptionPrivateKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
             }
         }
         else
         {
-            if (!ecc.TryExportEncryptedPkcs8PrivateKey(password,
+            while (!enc.TryExportEncryptedPkcs8PrivateKey(password,
                 new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA512, 10000),
-                privateKey,
-                out cbPrivate))
+                encryptionPrivateKeyBytes,
+                out cbEncryptionPrivateKey))
             {
-                cbPublic = 0;
-                return false;
+                encryptionPrivateKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
             }
         }
 
-        using ECDiffieHellmanPublicKey publicKeyHandle = ecc.PublicKey;
-        return publicKeyHandle.TryExportSubjectPublicKeyInfo(publicKey, out cbPublic);
+        byte[] encryptionPublicKeyBytes = new byte[200];
+        int cbEncryptionPublicKey;
+        while (!enc.TryExportSubjectPublicKeyInfo(encryptionPublicKeyBytes, out cbEncryptionPublicKey))
+        {
+            encryptionPublicKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
+        }
+
+        using ECDsa sign = ECDsa.Create();
+        byte[] signingPrivateKeyBytes = new byte[200];
+        int cbSigningPrivateKey;
+        if (password.IsEmpty)
+        {
+            while (!sign.TryExportPkcs8PrivateKey(signingPrivateKeyBytes, out cbSigningPrivateKey))
+            {
+                signingPrivateKeyBytes = new byte[signingPrivateKeyBytes.Length + 100];
+            }
+        }
+        else
+        {
+            while (!sign.TryExportEncryptedPkcs8PrivateKey(password,
+                new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA512, 10000),
+                signingPrivateKeyBytes,
+                out cbSigningPrivateKey))
+            {
+                signingPrivateKeyBytes = new byte[signingPrivateKeyBytes.Length + 100];
+            }
+        }
+
+        byte[] signingPublicKeyBytes = new byte[200];
+        int cbSigningPublicKey;
+        while (!sign.TryExportSubjectPublicKeyInfo(signingPublicKeyBytes, out cbSigningPublicKey))
+        {
+            signingPublicKeyBytes = new byte[signingPublicKeyBytes.Length + 100];
+        }
+
+        privateInfo = new PrivateClientInfo(
+            encryptionPrivateKeyBytes.AsMemory(0, cbEncryptionPrivateKey),
+            signingPrivateKeyBytes.AsMemory(0, cbSigningPrivateKey)
+        );
+        publicInfo = new PublicClientInfo(
+            encryptionPublicKeyBytes.AsMemory(0, cbEncryptionPublicKey),
+            signingPublicKeyBytes.AsMemory(0, cbSigningPublicKey)
+        );
     }
 }

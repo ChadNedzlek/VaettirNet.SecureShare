@@ -1,12 +1,16 @@
 using System;
 using System.Buffers;
-using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
 
-public delegate TOut SpanFunc<TIn, out TOut>(TIn span, out int cb)
+public delegate TOut SpanFunc<in TIn, out TOut>(TIn span, out int cb)
     where TIn : allows ref struct;
-public delegate TOut SpanFunc<TIn, in TState, out TOut>(TIn span, TState state, out int cb)
+
+public delegate TOut SpanFunc<in TIn1, in TIn2, out TOut>(TIn1 span1, out int cb1, TIn2 span2, out int cb2)
+    where TIn1 : allows ref struct
+    where TIn2 : allows ref struct;
+
+public delegate TOut SpanStateFunc<in TIn, in TState, out TOut>(TIn span, TState state, out int cb)
     where TState : allows ref struct
     where TIn : allows ref struct;
 
@@ -34,89 +38,59 @@ public readonly ref struct RentedSpan<T>
     }
 }
 
-public readonly ref struct SpanTuple<T1, T2>
+public readonly ref struct RefTuple<T1, T2> where T1 : allows ref struct where T2: allows ref struct
 {
-    public readonly Span<T1> Span1;
-    public readonly Span<T2> Span2;
+    public readonly T1 Item1;
+    public readonly T2 Item2;
 
-    public SpanTuple(Span<T1> span1, Span<T2> span2)
+    public RefTuple(T1 item1, T2 item2)
     {
-        Span1 = span1;
-        Span2 = span2;
+        Item1 = item1;
+        Item2 = item2;
     }
 
-    public void Deconstruct(out Span<T1> span1, out Span<T2> span2)
+    public void Deconstruct(out T1 span1, out T2 span2)
     {
-        span1 = Span1;
-        span2 = Span2;
+        span1 = Item1;
+        span2 = Item2;
     }
 }
 
-public readonly ref struct ReadOnlySpanTuple<T1, T2>
+public readonly ref struct RefTuple<T1, T2, T3>
+    where T1 : allows ref struct
+    where T2: allows ref struct
+    where T3: allows ref struct
 {
-    public readonly ReadOnlySpan<T1> Span1;
-    public readonly ReadOnlySpan<T2> Span2;
+    public readonly T1 Item1;
+    public readonly T2 Item2;
+    public readonly T3 Item3;
 
-    public ReadOnlySpanTuple(ReadOnlySpan<T1> span1, ReadOnlySpan<T2> span2)
+    public RefTuple(T1 item1, T2 item2, T3 item3)
     {
-        Span1 = span1;
-        Span2 = span2;
+        Item1 = item1;
+        Item2 = item2;
+        Item3 = item3;
     }
 
-    public void Deconstruct(out ReadOnlySpan<T1> span1, out ReadOnlySpan<T2> span2)
+    public void Deconstruct(out T1 item1, out T2 item2, out T3 item3)
     {
-        span1 = Span1;
-        span2 = Span2;
+        item1 = Item1;
+        item2 = Item2;
+        item3 = Item3;
     }
 }
 
-public readonly ref struct ReadOnlySpanTuple<T1, T2, T3>
+public static class RefTuple
 {
-    public readonly ReadOnlySpan<T1> Span1;
-    public readonly ReadOnlySpan<T2> Span2;
-    public readonly ReadOnlySpan<T3> Span3;
-
-    public ReadOnlySpanTuple(ReadOnlySpan<T1> span1, ReadOnlySpan<T2> span2, ReadOnlySpan<T3> span3)
-    {
-        Span1 = span1;
-        Span2 = span2;
-        Span3 = span3;
-    }
-
-    public void Deconstruct(out ReadOnlySpan<T1> span1, out ReadOnlySpan<T2> span2, out ReadOnlySpan<T3> span3)
-    {
-        span1 = Span1;
-        span2 = Span2;
-        span3 = Span3;
-    }
-}
-
-public static class SpanTuple
-{
-    public static SpanTuple<T1, T2> Create<T1, T2>(Span<T1> span1, Span<T2> span2) => new(span1, span2);
-    public static ReadOnlySpanTuple<T1, T2> Create<T1, T2>(ReadOnlySpan<T1> span1, ReadOnlySpan<T2> span2) => new(span1, span2);
-    public static ReadOnlySpanTuple<T1, T2, T3> Create<T1, T2, T3>(ReadOnlySpan<T1> span1, ReadOnlySpan<T2> span2, ReadOnlySpan<T3> span3) => new(span1, span2, span3);
-}
-
-public readonly ref struct SpanTupleWithState<T1, T2, TOther>
-{
-    public readonly Span<T1> Span1;
-    public readonly Span<T2> Span2;
-    public readonly TOther Other;
-    
-    public SpanTupleWithState(Span<T1> span1, Span<T2> span2, TOther other)
-    {
-        Span1 = span1;
-        Span2 = span2;
-        Other = other;
-    }
-    
-    public void Deconstruct(out Span<T1> span1, out Span<T2> span2, out TOther other)
-    {
-        other = Other;
-        span1 = Span1;
-        span2 = Span2;
-    }
+    public static RefTuple<T1, T2> Create<T1, T2>(T1 item1, T2 item2)
+        where T1 : allows ref struct
+        where T2 : allows ref struct
+        => new(item1, item2);
+    public static RefTuple<T1, T2, T3> Create<T1, T2, T3>(T1 item1, T2 item2, T3 item3)
+        where T1 : allows ref struct
+        where T2 : allows ref struct
+        where T3 : allows ref struct
+        => new(item1, item2, item3);
 }
 
 internal static class Helpers
@@ -141,7 +115,8 @@ internal static class Helpers
             pool.Return(rented);
         }
     }
-    internal static RentedSpan<T> GrowingSpan<T, TState>(Span<T> startSpan, in SpanFunc<Span<T>, TState, bool> callback, TState state, ArrayPool<T> pool, Func<int,int>? growth = null)
+    
+    internal static RentedSpan<T> GrowingSpan<T, TState>(Span<T> startSpan, in SpanStateFunc<Span<T>, TState, bool> callback, TState state, ArrayPool<T> pool, Func<int,int>? growth = null)
         where TState : allows ref struct
     {
         growth ??= x => x << 2;

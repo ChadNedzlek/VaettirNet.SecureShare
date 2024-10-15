@@ -9,22 +9,17 @@ public class MessageAlgoritmTest
     [Test]
     public void EncryptDecrypt()
     {
-        MessageEncryptionAlgorithm alg = new();
+        VaultCryptographyAlgorithm alg = new();
         
-        byte[] private1 = new byte[500];
-        byte[] private2 = new byte[500];
-        byte[] public1 = new byte[500];
-        byte[] public2 = new byte[500];
-        
-        alg.TryCreate(private1, out int privateLength1, public1, out int publicLength1);
-        alg.TryCreate(private2, out int privateLength2, public2, out int publicLength2);
+        alg.Create(out var private1, out var public1);
+        alg.Create(out var private2, out var public2);
 
         byte[] encrypted = new byte[500];
         ReadOnlySpan<byte> inputText = "Test String"u8;
         alg.TryEncryptFor(
                 inputText,
-                private1[..privateLength1],
-                public2[..publicLength2],
+                private1.EncryptionKey.Span,
+                public2.EncryptionKey.Span,
                 encrypted,
                 out int encryptedLength)
             .Should()
@@ -35,8 +30,8 @@ public class MessageAlgoritmTest
         
         alg.TryDecryptFrom(
                 encrypted.AsSpan(0, encryptedLength),
-                private2[..privateLength2],
-                public1[..publicLength1],
+                private2.EncryptionKey.Span,
+                public1.EncryptionKey.Span,
                 outputText,
                 out int outputLength)
             .Should()
