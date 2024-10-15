@@ -20,14 +20,18 @@ public class UnsealedVault
         where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
-        IEnumerable<SealedSecretValue<TAttributes, TProtected>>? secrets = Vault.GetStoreOrDefault<TAttributes, TProtected>();
-        return new SecretStore<TAttributes, TProtected>(_transformer, secrets ?? []);
+        if (Vault.GetStoreOrDefault<TAttributes, TProtected>() is { } vault)
+        {
+            return new SecretStore<TAttributes, TProtected>(_transformer, vault);
+        }
+
+        return new SecretStore<TAttributes, TProtected>(_transformer);
     }
 
     public void SaveStore<TAttributes, TProtected>(SecretStore<TAttributes, TProtected> store)
         where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
-        Vault.AddStore(store);
+        Vault.UpdateVault(store.ToTypedVault());
     }
 }

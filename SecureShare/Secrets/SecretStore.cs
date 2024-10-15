@@ -1,44 +1,57 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using JetBrains.Annotations;
 using VaettirNet.SecureShare.Serialization;
+using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare.Secrets;
 
 public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretValue<TAttributes, TProtected>> where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
 {
-    private readonly Dictionary<Guid, SealedSecretValue<TAttributes, TProtected>> _closedSecrets;
+    private readonly Dictionary<Guid, SealedSecretValue<TAttributes, TProtected>> _secrets;
+    private readonly Dictionary<Guid, ReadOnlyMemory<byte>> _deleted;
     private readonly SecretTransformer _transformer;
 
-    public SecretStore(
-        SecretTransformer transformer,
-        IEnumerable<SealedSecretValue<TAttributes, TProtected>>? closedSecrets = null
-    )
+    public SecretStore(SecretTransformer transformer)
     {
         _transformer = transformer;
-        _closedSecrets = closedSecrets?.ToDictionary(s => s.Id) ?? [];
+        _secrets = [];
+        _deleted = [];
+    }
+
+    public SecretStore(SecretTransformer transformer, TypedVault vault)
+    {
+        _transformer = transformer;
+        _secrets = vault.SealedSecrets.Cast<SealedSecretValue<TAttributes, TProtected>>().ToDictionary(s => s.Id);
+        _deleted = vault.DeletedSecrets.ToDictionary();
+    }
+
+    public TypedVault ToTypedVault()
+    {
+        return new TypedVault(typeof(TAttributes), typeof(TProtected), _secrets.Values, _deleted.ToImmutableDictionary());
     }
 
     public IEnumerator<SealedSecretValue<TAttributes, TProtected>> GetEnumerator()
     {
-        return _closedSecrets.Values.GetEnumerator();
+        return _secrets.Values.GetEnumerator();
     }
 
     [MustDisposeResource]
     IEnumerator IEnumerable.GetEnumerator()
     {
-        return ((IEnumerable)_closedSecrets).GetEnumerator();
+        return ((IEnumerable)_secrets.Values).GetEnumerator();
     }
 
     public UnsealedSecretValue<TAttributes, TProtected> GetUnsealed(Guid id) => _transformer.Unseal(Get(id));
 
     public SealedSecretValue<TAttributes, TProtected> Get(Guid id)
     {
-        lock (_closedSecrets)
+        lock (_secrets)
         {
-            return _closedSecrets[id];
+            return _secrets[id];
         }
     }
 
@@ -53,15 +66,26 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretValu
     
     public void Set(SealedSecretValue<TAttributes, TProtected> value)
     {
-        lock (_closedSecrets)
+        lock (_secrets)
         {
-            if (_closedSecrets.TryGetValue(value.Id, out var existing))
+            if (_secrets.TryGetValue(value.Id, out var existing))
             {
-                _closedSecrets[value.Id] = value with { Version = existing.Version + 1 };
+                _secrets[value.Id] = value with { Version = existing.Version + 1 };
             }
             else
             {
-                _closedSecrets.Add(value.Id, value with {Version = 1});
+                _secrets.Add(value.Id, value with {Version = 1});
+            }
+        }
+    }
+
+    public void Remove(Guid id)
+    {
+        lock (_secrets)
+        {
+            if (_secrets.Remove(id, out var secret))
+            {
+                _deleted.Add(id, secret.HashBytes);
             }
         }
     }
