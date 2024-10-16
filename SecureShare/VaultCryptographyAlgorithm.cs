@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
@@ -8,20 +10,20 @@ public class VaultCryptographyAlgorithm
 {
     public bool TryEncryptFor(
         ReadOnlySpan<byte> plainText,
-        ReadOnlySpan<byte> privateKey,
-        ReadOnlySpan<byte> otherPublicKey,
+        PrivateClientInfo privateInfo,
+        PublicClientInfo forPublicInfo,
         Span<byte> encrypted,
         out int bytesWritten
     )
     {
-        return TryEncryptFor(plainText, privateKey, default, otherPublicKey, encrypted, out bytesWritten);
+        return TryEncryptFor(plainText, privateInfo, default, forPublicInfo, encrypted, out bytesWritten);
     }
 
     public bool TryEncryptFor(
         ReadOnlySpan<byte> plainText,
-        ReadOnlySpan<byte> privateKey,
+        PrivateClientInfo privateInfo,
         ReadOnlySpan<char> password,
-        ReadOnlySpan<byte> otherPublicKey,
+        PublicClientInfo forPublicInfo,
         Span<byte> encrypted,
         out int bytesWritten
     )
@@ -32,12 +34,12 @@ public class VaultCryptographyAlgorithm
 
         using ECDiffieHellman self = ECDiffieHellman.Create();
         if (password.IsEmpty)
-            self.ImportPkcs8PrivateKey(privateKey, out _);
+            self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
         else
-            self.ImportEncryptedPkcs8PrivateKey(password, privateKey, out _);
+            self.ImportEncryptedPkcs8PrivateKey(password, privateInfo.EncryptionKey.Span, out _);
 
         using ECDiffieHellman other = ECDiffieHellman.Create();
-        other.ImportSubjectPublicKeyInfo(otherPublicKey, out _);
+        other.ImportSubjectPublicKeyInfo(forPublicInfo.EncryptionKey.Span, out _);
         using ECDiffieHellmanPublicKey otherPublicKeyHandle = other.PublicKey;
         byte[] key = self.DeriveKeyMaterial(otherPublicKeyHandle);
 
@@ -50,20 +52,20 @@ public class VaultCryptographyAlgorithm
 
     public bool TryDecryptFrom(
         ReadOnlySpan<byte> encrypted,
-        ReadOnlySpan<byte> privateKey,
-        ReadOnlySpan<byte> otherPublicKey,
+        PrivateClientInfo privateInfo,
+        PublicClientInfo fromClientInfo,
         Span<byte> plainText,
         out int bytesWritten
     )
     {
-        return TryDecryptFrom(encrypted, privateKey, default, otherPublicKey, plainText, out bytesWritten);
+        return TryDecryptFrom(encrypted, privateInfo, default, fromClientInfo, plainText, out bytesWritten);
     }
 
     public bool TryDecryptFrom(
         ReadOnlySpan<byte> encrypted,
-        ReadOnlySpan<byte> privateKey,
+        PrivateClientInfo privateInfo,
         ReadOnlySpan<char> password,
-        ReadOnlySpan<byte> otherPublicKey,
+        PublicClientInfo fromClientInfo,
         Span<byte> plainText,
         out int bytesWritten
     )
@@ -72,12 +74,12 @@ public class VaultCryptographyAlgorithm
 
         using ECDiffieHellman self = ECDiffieHellman.Create();
         if (password.IsEmpty)
-            self.ImportPkcs8PrivateKey(privateKey, out _);
+            self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
         else
-            self.ImportEncryptedPkcs8PrivateKey(password, privateKey, out _);
+            self.ImportEncryptedPkcs8PrivateKey(password, privateInfo.EncryptionKey.Span, out _);
 
         using ECDiffieHellman other = ECDiffieHellman.Create();
-        other.ImportSubjectPublicKeyInfo(otherPublicKey, out _);
+        other.ImportSubjectPublicKeyInfo(fromClientInfo.EncryptionKey.Span, out _);
         using ECDiffieHellmanPublicKey otherPublicKeyHandle = other.PublicKey;
         byte[] key = self.DeriveKeyMaterial(otherPublicKeyHandle);
 
@@ -155,5 +157,49 @@ public class VaultCryptographyAlgorithm
             encryptionPublicKeyBytes.AsMemory(0, cbEncryptionPublicKey),
             signingPublicKeyBytes.AsMemory(0, cbSigningPublicKey)
         );
+    }
+
+    public Signed<T> Sign<T>(T toSign, PrivateClientInfo privateInfo, ReadOnlySpan<char> password) where T : ISignable<T>
+    {
+        var dsa = ECDsa.Create();
+        if (password.IsEmpty)
+        {
+            dsa.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
+        }
+        else
+        {
+            dsa.ImportEncryptedPkcs8PrivateKey(password, privateInfo.SigningKey.Span, out _);
+        }
+
+        IBinarySerializer<T> serializer = T.GetBinarySerializer();
+        using RentedSpan<byte> data = Helpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => serializer.TrySerialize(toSign, span, out cb),
+            VaultArrayPool.Pool);
+        
+        return new Signed<T>(toSign, dsa.SignData(data.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
+    }
+
+    public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : IBinarySerializable<T>, ISignable<T>
+    {
+        T unvalidated = toSign.DangerousGetPayload();
+        
+        var dsa = ECDsa.Create();
+        dsa.ImportSubjectPublicKeyInfo(publicInfo.SigningKey.Span, out _);
+
+        IBinarySerializer<T> serializer = T.GetBinarySerializer();
+        using RentedSpan<byte> data = Helpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => serializer.TrySerialize(unvalidated, span, out cb),
+            VaultArrayPool.Pool);
+
+        if (!dsa.VerifyData(data.Span, toSign.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        {
+            payload = default;
+            return false;
+        }
+
+        payload = unvalidated;
+        return true;
     }
 }

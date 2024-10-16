@@ -14,7 +14,7 @@ public class SerializationTests
         SecretAttributes value = new() { Value = "Test Value" };
         JsonNode jsonNode = SecretAttributes.GetSerializer().Serialize(value);
         jsonNode.ToJsonString().Should().Be("""{"Value":"Test Value"}""");
-        var roundTripped = SecretAttributes.GetSerializer().Deserialize(jsonNode);
+        SecretAttributes roundTripped = SecretAttributes.GetSerializer().Deserialize(jsonNode);
         roundTripped.Should().BeEquivalentTo(value);
     }
     [Test]
@@ -23,8 +23,8 @@ public class SerializationTests
     {
         SecretAttributes value = new() { Value = "Test Value" };
         Span<byte> buffer = stackalloc byte[100];
-        SecretAttributes.GetSerializer().TrySerialize(value, buffer, out int cb).Should().BeTrue();
-        SecretAttributes roundTripped = SecretAttributes.GetSerializer().Deserialize(buffer[..cb]);
+        SecretAttributes.GetBinarySerializer().TrySerialize(value, buffer, out int cb).Should().BeTrue();
+        SecretAttributes roundTripped = SecretAttributes.GetBinarySerializer().Deserialize(buffer[..cb]);
         roundTripped.Should().BeEquivalentTo(value);
     }
     
@@ -33,9 +33,17 @@ public class SerializationTests
     {
         SecretProtectedValue value = new() { ProtValue = "Test Value" };
         Span<byte> buffer = stackalloc byte[100];
-        SecretProtectedValue.GetSerializer().TrySerialize(value, buffer, out int cb).Should().BeTrue();
-        SecretProtectedValue roundTripped = SecretProtectedValue.GetSerializer().Deserialize(buffer[..cb]);
+        SecretProtectedValue.GetBinarySerializer().TrySerialize(value, buffer, out int cb).Should().BeTrue();
+        SecretProtectedValue roundTripped = SecretProtectedValue.GetBinarySerializer().Deserialize(buffer[..cb]);
         roundTripped.Should().BeEquivalentTo(value);
+    }
+    
+    [Test]
+    public void TooSmallFailsWithFalse()
+    {
+        SecretProtectedValue value = new() { ProtValue = "Test Value" };
+        Span<byte> buffer = stackalloc byte[1];
+        SecretProtectedValue.GetBinarySerializer().TrySerialize(value, buffer, out _).Should().BeFalse();
     }
 
     [Test]
@@ -43,22 +51,22 @@ public class SerializationTests
     {
         SecretStore<SecretAttributes, SecretProtectedValue> store = new(SecretTransformer.CreateRandom());
         Guid id = store.Add("Attribute Value", "Protected Value");
-        var sealedValue = store.Get(id);
+        SealedSecretValue<SecretAttributes, SecretProtectedValue> sealedValue = store.Get(id);
         sealedValue.Version.Should().Be(1);
         sealedValue.Attributes.Value.Should().Be("Attribute Value");
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Protected Value"));
-        var modifiedAttr = store.Get(id);
+        SealedSecretValue<SecretAttributes, SecretProtectedValue> modifiedAttr = store.Get(id);
         modifiedAttr.Version.Should().Be(2);
         modifiedAttr.Attributes.Value.Should().Be("Different Value");
         Convert.ToBase64String(modifiedAttr.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Different Protected Value"));
-        var modifiedProtectedS = store.Get(id);
+        SealedSecretValue<SecretAttributes, SecretProtectedValue> modifiedProtectedS = store.Get(id);
         modifiedProtectedS.Version.Should().Be(3);
         modifiedProtectedS.Attributes.Value.Should().Be("Different Value");
         Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
         Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(modifiedAttr.HashBytes.Span));
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Attribute Value", "Protected Value"));
-        var reset = store.Get(id);
+        SealedSecretValue<SecretAttributes, SecretProtectedValue> reset = store.Get(id);
         reset.Version.Should().Be(4);
         Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
     }

@@ -8,6 +8,7 @@ public record VaultClientEntry(
     string Description,
     ReadOnlyMemory<byte> EncryptionKey,
     ReadOnlyMemory<byte> SigningKey,
-    ReadOnlyMemory<byte> EncryptedSharedKey,
-    Guid AuthorizedByClientId
-);
+    ReadOnlyMemory<byte> EncryptedSharedKey)
+{
+    public PublicClientInfo PublicInfo => new(EncryptionKey, SigningKey);
+}

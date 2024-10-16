@@ -17,4 +17,6 @@ public class VaultRequest
     public string Description { get; }
     public ReadOnlyMemory<byte> EncryptionKey { get; }
     public ReadOnlyMemory<byte> SigningKey { get; }
+    
+    public PublicClientInfo PublicInfo => new PublicClientInfo(EncryptionKey, SigningKey);
 }

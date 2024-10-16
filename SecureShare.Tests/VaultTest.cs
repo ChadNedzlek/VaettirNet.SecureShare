@@ -14,10 +14,9 @@ public class VaultTest
     [Test]
     public void SealUnseal()
     {
-        var aliceVaultManager = VaultManager.Initialize("Alice", out var aliceInfo);
+        VaultManager aliceVaultManager = VaultManager.Initialize("Alice", out PrivateClientInfo aliceInfo);
         aliceVaultManager.Vault.Data.TryGetClient(aliceVaultManager.Vault.ClientId, out VaultClientEntry aliceEntry).Should().BeTrue();
         aliceEntry.Description.Should().Be("Alice");
-        aliceEntry.AuthorizedByClientId.Should().Be(aliceVaultManager.Vault.ClientId);
         Guid secretId;
         {
             UnsealedVault unsealed = aliceVaultManager.Unseal();
@@ -28,19 +27,18 @@ public class VaultTest
 
         VaultCryptographyAlgorithm messageAlg = new();
         VaultRequestManager vaultRequestManager = new(messageAlg);
-        var bobRequest = vaultRequestManager.CreateRequest("Bob's Client", out var bobPrivateInfo);
+        VaultRequest bobRequest = vaultRequestManager.CreateRequest("Bob's Client", out PrivateClientInfo bobPrivateInfo);
 
-        aliceVaultManager.AddAuthenticatedClient(aliceInfo.EncryptionKey.Span, bobRequest);
+        aliceVaultManager.AddAuthenticatedClient(aliceInfo, bobRequest);
         aliceVaultManager.Vault.Data.TryGetClient(bobRequest.ClientId, out VaultClientEntry bobEntry).Should().BeTrue();
         bobEntry.Description.Should().Be("Bob's Client");
-        bobEntry.AuthorizedByClientId.Should().Be(aliceVaultManager.Vault.ClientId);
         bobEntry.EncryptionKey.Should().BeEquivalentTo(bobRequest.EncryptionKey);
 
-        VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateInfo.EncryptionKey.Span);
+        VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateInfo);
         {
             UnsealedVault unsealed = bobManager.Unseal();
             SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
-            var secret = store.GetUnsealed(secretId);
+            UnsealedSecretValue<SecretAttributes, SecretProtectedValue> secret = store.GetUnsealed(secretId);
             secret.Attributes.Value.Should().Be("Attr Value");
             secret.Protected.ProtValue.Should().Be("Test Value");
         }

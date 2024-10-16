@@ -157,8 +157,8 @@ public class SecretTransformer
 
         using RentedSpan<byte> encrypted = Helpers.GrowingSpan(
             stackalloc byte[50],
-            (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),
             serialized.Span,
+            (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),
             VaultArrayPool.Pool);
         
         return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, Version, hashBytes);

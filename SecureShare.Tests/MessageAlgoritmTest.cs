@@ -1,6 +1,7 @@
 using System.Text;
 using FluentAssertions;
 using VaettirNet.SecureShare;
+using VaettirNet.SecureShare.Vaults;
 
 namespace SecureShare.Tests;
 
@@ -11,15 +12,15 @@ public class MessageAlgoritmTest
     {
         VaultCryptographyAlgorithm alg = new();
         
-        alg.Create(out var private1, out var public1);
-        alg.Create(out var private2, out var public2);
+        alg.Create(out PrivateClientInfo private1, out PublicClientInfo public1);
+        alg.Create(out PrivateClientInfo private2, out PublicClientInfo public2);
 
         byte[] encrypted = new byte[500];
         ReadOnlySpan<byte> inputText = "Test String"u8;
         alg.TryEncryptFor(
                 inputText,
-                private1.EncryptionKey.Span,
-                public2.EncryptionKey.Span,
+                private1,
+                public2,
                 encrypted,
                 out int encryptedLength)
             .Should()
@@ -30,8 +31,8 @@ public class MessageAlgoritmTest
         
         alg.TryDecryptFrom(
                 encrypted.AsSpan(0, encryptedLength),
-                private2.EncryptionKey.Span,
-                public1.EncryptionKey.Span,
+                private2,
+                public1,
                 outputText,
                 out int outputLength)
             .Should()
