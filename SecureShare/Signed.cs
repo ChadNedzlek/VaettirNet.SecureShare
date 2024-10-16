@@ -1,13 +1,7 @@
 using System;
-using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
-
-public interface ISignable<TSelf> : IBinarySerializable<TSelf> where TSelf : IBinarySerializable<TSelf>
-{
-    Guid Authorizer { get; }
-}
 
 public readonly struct Signed<T> where T : ISignable<T>
 {

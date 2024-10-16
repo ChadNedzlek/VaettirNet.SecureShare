@@ -70,11 +70,11 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretValu
         {
             if (_secrets.TryGetValue(value.Id, out var existing))
             {
-                _secrets[value.Id] = value with { Version = existing.Version + 1 };
+                _secrets[value.Id] = value.WithVersion(existing.Version + 1);
             }
             else
             {
-                _secrets.Add(value.Id, value with {Version = 1});
+                _secrets.Add(value.Id, value.WithVersion(1));
             }
         }
     }

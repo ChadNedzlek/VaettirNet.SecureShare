@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using ProtoBuf;
@@ -17,10 +18,10 @@ public class SerializationTests
         SecretAttributes roundTripped = SecretAttributes.GetSerializer().Deserialize(jsonNode);
         roundTripped.Should().BeEquivalentTo(value);
     }
+
     [Test]
-    
     public void FullBinarySerializableRoundTripe()
-    {
+    {            
         SecretAttributes value = new() { Value = "Test Value" };
         Span<byte> buffer = stackalloc byte[100];
         SecretAttributes.GetBinarySerializer().TrySerialize(value, buffer, out int cb).Should().BeTrue();
@@ -70,22 +71,4 @@ public class SerializationTests
         reset.Version.Should().Be(4);
         Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
     }
-}
-
-[ProtoContract]
-public class SecretProtectedValue : BinarySerializable<SecretProtectedValue>
-{
-    [ProtoMember(1)]
-    public string ProtValue { get; set; }
-
-    public static implicit operator SecretProtectedValue(string value) => new() { ProtValue = value };
-}
-
-[ProtoContract]
-public class SecretAttributes : FullSerializable<SecretAttributes>
-{
-    [ProtoMember(1)]
-    public string Value { get; set; }
-    
-    public static implicit operator SecretAttributes(string value) => new() { Value = value };
 }

@@ -26,26 +26,3 @@ public class VaultRequestManager
         return new VaultRequest(clientId, description, publicInfo.EncryptionKey, publicInfo.SigningKey);
     }
 }
-
-public struct PrivateClientInfo
-{
-    public readonly ReadOnlyMemory<byte> EncryptionKey;
-    public readonly ReadOnlyMemory<byte> SigningKey;
-
-    public PrivateClientInfo(ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey)
-    {
-        EncryptionKey = encryptionKey;
-        SigningKey = signingKey;
-    }
-}
-public struct PublicClientInfo
-{
-    public readonly ReadOnlyMemory<byte> EncryptionKey;
-    public readonly ReadOnlyMemory<byte> SigningKey;
-
-    public PublicClientInfo(ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey)
-    {
-        EncryptionKey = encryptionKey;
-        SigningKey = signingKey;
-    }
-}

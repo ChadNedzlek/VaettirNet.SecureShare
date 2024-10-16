@@ -4,58 +4,9 @@ using JetBrains.Annotations;
 
 namespace VaettirNet.SecureShare;
 
-public delegate TOut SpanFunc<in TIn, out TOut>(TIn span, out int cb)
-    where TIn : allows ref struct;
-
 public delegate TOut SpanFunc<in TIn1, in TIn2, out TOut>(TIn1 span1, out int cb1, TIn2 span2, out int cb2)
     where TIn1 : allows ref struct
     where TIn2 : allows ref struct;
-
-public delegate TOut SpanStateFunc<in TIn, in TState, out TOut>(TIn span, TState state, out int cb)
-    where TState : allows ref struct
-    where TIn : allows ref struct;
-
-public readonly ref struct RentedSpan<T>
-{
-    public RentedSpan(Span<T> span)
-    {
-        Span = span;
-    }
-
-    public RentedSpan(Span<T> span, T[] toReturn, ArrayPool<T> pool)
-    {
-        Span = span;
-        _toReturn = toReturn;
-        _pool = pool;
-    }
-
-    public readonly Span<T> Span;
-    private readonly T[]? _toReturn;
-    private readonly ArrayPool<T>? _pool;
-
-    public void Dispose()
-    {
-        if (_toReturn != null) _pool?.Return(_toReturn);
-    }
-}
-
-public readonly ref struct RefTuple<T1, T2> where T1 : allows ref struct where T2: allows ref struct
-{
-    public readonly T1 Item1;
-    public readonly T2 Item2;
-
-    public RefTuple(T1 item1, T2 item2)
-    {
-        Item1 = item1;
-        Item2 = item2;
-    }
-
-    public void Deconstruct(out T1 span1, out T2 span2)
-    {
-        span1 = Item1;
-        span2 = Item2;
-    }
-}
 
 public readonly ref struct RefTuple<T1, T2, T3>
     where T1 : allows ref struct

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -9,6 +10,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.Versioning;
 using FluentAssertions;
+using FluentAssertions.Formatting;
 
 namespace QrSync.Tests;
 

@@ -5,25 +5,32 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using ProtoBuf;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-public class TypedVault
+public class VaultDataSnapshot
 {
-    public Type AttributeType { get; }
-    public Type ProtectedType { get; }
+    public readonly ImmutableList<VaultClientEntry> Clients;
+    public readonly ImmutableList<BlockedVaultClientEntry> BlockedClients;
+    public readonly ImmutableList<Signed<ClientModificationRecord>> ClientModificications;
+}
 
-    public ImmutableArray<object> SealedSecrets;
-    public ImmutableDictionary<Guid, ReadOnlyMemory<byte>> DeletedSecrets;
+public class VaultIdentifier
+{
+    public readonly string Name;
+    public readonly string AttributeType;
+    public readonly string ProtectedType;
 
-    public TypedVault(Type attributeType, Type protectedType, IEnumerable<object>? sealedSecrets = null, ImmutableDictionary<Guid, ReadOnlyMemory<byte>>? deletedSecrets = null)
+    public VaultIdentifier(string attributeType, string protectedType) : this(attributeType + '|' + protectedType, attributeType, protectedType)
     {
+    }
+
+    public VaultIdentifier(string name, string attributeType, string protectedType)
+    {
+        Name = name;
         AttributeType = attributeType;
         ProtectedType = protectedType;
-        SealedSecrets = sealedSecrets?.ToImmutableArray() ?? [];
-        DeletedSecrets = deletedSecrets ?? ImmutableDictionary<Guid, ReadOnlyMemory<byte>>.Empty;
     }
 }
 
@@ -133,27 +140,4 @@ public class VaultData
     {
         _modificationRecords.Add(record);
     }
-}
-
-public enum ClientAction
-{
-    None = 0,
-    Added,
-    Blocked,
-    KeyChange,
-}
-
-[ProtoContract]
-public class ClientModificationRecord : BinarySerializable<ClientModificationRecord>, ISignable<ClientModificationRecord>
-{
-    [ProtoMember(1)]
-    public required ClientAction Action { get; init; }
-    [ProtoMember(2)]
-    public required Guid Client { get; init; }
-    [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> SigningKey { get; init; }
-    [ProtoMember(4)]
-    public required ReadOnlyMemory<byte> EncryptionKey { get; init; }
-    [ProtoMember(5)]
-    public required Guid Authorizer { get; init; }
 }

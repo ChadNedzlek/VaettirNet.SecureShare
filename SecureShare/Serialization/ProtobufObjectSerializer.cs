@@ -9,36 +9,23 @@ using ProtoBuf.Meta;
 
 namespace VaettirNet.SecureShare.Serialization;
 
-public class ProtobufObjectSerializer 
+public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
+    where T : IBinarySerializable<T>
 {
-    private static ProtobufObjectSerializer Instance { get; } = new ();
+    private readonly TypeModel _typeModel;
+    private static ProtobufObjectSerializer<T> Instance { get; } = new ();
 
-    public static ProtobufObjectSerializer Create(Type type)
+    private ProtobufObjectSerializer()
     {
-        ValidateType(type);
-        return Instance;
+        var model = RuntimeTypeModel.Create();
+        model.Add<T>();
+        _typeModel = model.Compile();
     }
-    
-    public static IBinarySerializer<T> Create<T>() where T : IBinarySerializable<T>
+
+    public static IBinarySerializer<T> Create()
     {
         ValidateType(typeof(T));
-        return GetTypedWrapper<T>();
-    }
-
-    private static TypedWrapper<T> GetTypedWrapper<T>() where T : IBinarySerializable<T>
-    {
-        return TypedWrapper<T>.TypedInstance;
-    }
-
-    private class TypedWrapper<T> : IBinarySerializer<T> where T : IBinarySerializable<T>
-    {
-        public static TypedWrapper<T> TypedInstance { get; } = new();
-
-        public bool TrySerialize(T value, Span<byte> destination, out int bytesWritten)
-            => Instance.TrySerialize(value, typeof(T), destination, out bytesWritten);
-
-        public T Deserialize(ReadOnlySpan<byte> source)
-            => (T)Instance.Deserialize(source, typeof(T));
+        return Instance;
     }
 
     protected static void ValidateType(Type type)
@@ -55,23 +42,16 @@ public class ProtobufObjectSerializer
         }
     }
 
-    private bool TrySerialize(object value, Type type, Span<byte> destination, out int bytesWritten)
+    public bool TrySerialize(T value, Span<byte> destination, out int bytesWritten)
     {
         unsafe
         {
             fixed (byte* buffer = &destination.GetPinnableReference())
             {
-                UnmanagedMemoryStream s = new(buffer, 0, destination.Length, FileAccess.Write);
-                TypeModel typeModel = RuntimeTypeModel.CreateForAssembly(type);
-                try
+                FixedSizeUnmanagedMemoryStream s = new(new(buffer, 0, destination.Length, FileAccess.Write));
+                _typeModel.Serialize(s, value);
+                if (s.IsExhausted)
                 {
-                    typeModel.Serialize(s, value);
-                }
-                catch (NotSupportedException)
-                {
-                    // UnmanagedMemoryStream, annoyingly, throws a NotSupportedException if 
-                    // too much is written, with no real useful information,
-                    // so we need to catch that and be sad
                     bytesWritten = 0;
                     return false;
                 }
@@ -83,14 +63,14 @@ public class ProtobufObjectSerializer
         }
     }
 
-    private object Deserialize(ReadOnlySpan<byte> source, Type type)
+    public T Deserialize(ReadOnlySpan<byte> source)
     {
         unsafe
         {
             fixed (byte* buffer = &source.GetPinnableReference())
             {
                 using PointerMemoryManager<byte> mm = new(buffer, source.Length);
-                return RuntimeTypeModel.CreateForAssembly(type).Deserialize(mm.Memory, type:type);
+                return (T)_typeModel.Deserialize(mm.Memory, type:typeof(T));
             }
         }
     }

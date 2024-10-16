@@ -104,22 +104,15 @@ public class SecretTransformer
         return enc.TryDecrypt(input, destination, out cb);
     }
 
-    public UntypedSecret<TAttributes> Unseal<TAttributes>(
-        SealedSecretValue<TAttributes> secret
-    ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
-    {
-        return new PooledUntypedSecret<TAttributes>(this, secret);
-    }
-
     public UnsealedSecretValue<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
         SealedSecretValue<TAttributes, TProtected> value
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
-        return UnsealInternal<TAttributes, TProtected>(value);
+        return UnsealInternal(value);
     }
 
     private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
-        SealedSecretValue<TAttributes> value
+        SealedSecretValue<TAttributes, TProtected> value
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
@@ -206,23 +199,6 @@ public class SecretTransformer
         {
             if (_pool.Count < 10)
                 _pool.Add(_alg);
-        }
-    }
-
-    public abstract record UntypedSecret<TAttributes>(SealedSecretValue<TAttributes> Value)
-        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
-    {
-        public abstract UnsealedSecretValue<TAttributes, TProtected> As<TProtected>()
-            where TProtected : IBinarySerializable<TProtected>;
-    }
-
-    private record PooledUntypedSecret<TAttributes>(SecretTransformer Transformer, SealedSecretValue<TAttributes> Value)
-        : UntypedSecret<TAttributes>(Value)
-        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
-    {
-        public override UnsealedSecretValue<TAttributes, TProtected> As<TProtected>()
-        {
-            return Transformer.UnsealInternal<TAttributes, TProtected>(Value);
         }
     }
 }
