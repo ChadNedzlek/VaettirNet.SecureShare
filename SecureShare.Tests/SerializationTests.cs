@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
-using ProtoBuf;
 using ProtoBuf.Meta;
 using VaettirNet.SecureShare.Secrets;
 
@@ -80,27 +79,4 @@ public class SerializationTests
             .AddSubType(1, typeof(SubValue<int>));
         var t = model.Compile();
     }
-}
-
-public class Container
-{
-    [ProtoMember(1)]
-    public TestValue Value { get; private set; }
-}
-
-public class TestValue
-{
-    [ProtoMember(1)]
-    public Guid Id { get; private set; }
-}
-
-public class SubValue<T> : TestValue
-{
-    public SubValue(T value)
-    {
-        Value = value;
-    }
-
-    [ProtoMember(2)]
-    public T Value { get; private set; }
 }

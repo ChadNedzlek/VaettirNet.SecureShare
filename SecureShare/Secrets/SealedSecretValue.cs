@@ -5,19 +5,6 @@ using VaettirNet.SecureShare.Serialization;
 namespace VaettirNet.SecureShare.Secrets;
 
 [ProtoContract]
-public class UntypedSealedValue
-{
-    [ProtoMember(1)]
-    public required Guid Id { get; init; }
-
-    [ProtoMember(5)]
-    public int Version { get; init; }
-
-    [ProtoMember(6)]
-    public required ReadOnlyMemory<byte> HashBytes { get; init; }
-}
-
-[ProtoContract]
 public class SealedSecretValue<TAttributes, TProtected> : UntypedSealedValue
     where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>
