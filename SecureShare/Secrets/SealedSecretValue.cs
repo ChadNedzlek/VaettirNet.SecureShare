@@ -5,54 +5,61 @@ using VaettirNet.SecureShare.Serialization;
 namespace VaettirNet.SecureShare.Secrets;
 
 [ProtoContract]
-public class SealedSecretValue<TAttributes, TProtected>
+public class UntypedSealedValue
+{
+    [ProtoMember(1)]
+    public required Guid Id { get; init; }
+
+    [ProtoMember(5)]
+    public int Version { get; init; }
+
+    [ProtoMember(6)]
+    public required ReadOnlyMemory<byte> HashBytes { get; init; }
+}
+
+[ProtoContract]
+public class SealedSecretValue<TAttributes, TProtected> : UntypedSealedValue
     where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>
 {
-    [ProtoMember(1)]
-    public Guid Id { get; private set; }
-
     [ProtoMember(2)]
-    public TAttributes Attributes { get; private set; }
+    public required TAttributes Attributes { get; init; }
 
     [ProtoMember(3)]
-    public ReadOnlyMemory<byte> Protected { get; private set; }
+    public required ReadOnlyMemory<byte> Protected { get; init; }
 
     [ProtoMember(4)]
-    public int KeyId { get; private set; }
-
-    [ProtoMember(5)]
-    public int Version { get; private set; }
-
-    [ProtoMember(6)]
-    public ReadOnlyMemory<byte> HashBytes { get; private set; }
-
-    public SealedSecretValue(
-        Guid id,
-        TAttributes attributes,
-        ReadOnlyMemory<byte> @protected,
-        int keyId,
-        ReadOnlyMemory<byte> hashBytes
-    ) : this(id, attributes, @protected, keyId, 0, hashBytes)
+    public required int KeyId { get; init; }
+    
+    public SealedSecretValue<TAttributes, TProtected> WithVersion(int version) => new()
     {
-    }
+        Attributes = Attributes,
+        Protected = Protected,
+        KeyId = KeyId,
+        Id = Id,
+        HashBytes = HashBytes,
+        Version = version,
+    };
+}
 
-    public SealedSecretValue(
+public static class SealedSecretValue
+{
+    public static SealedSecretValue<TAttributes, TProtected> Create<TAttributes, TProtected>(
         Guid id,
         TAttributes attributes,
         ReadOnlyMemory<byte> @protected,
         int keyId,
-        int version,
-        ReadOnlyMemory<byte> hashBytes
+        ReadOnlyMemory<byte> hashBytes,
+        int version = 0
     )
+        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
+        where TProtected : IBinarySerializable<TProtected> => new()
     {
-        Id = id;
-        Attributes = attributes;
-        Protected = @protected;
-        KeyId = keyId;
-        Version = version;
-        HashBytes = hashBytes;
-    }
-
-    public SealedSecretValue<TAttributes, TProtected> WithVersion(int version) => new(Id, Attributes, Protected, KeyId, version, HashBytes);
+        Attributes = attributes,
+        Protected = @protected,
+        KeyId = keyId,
+        Id = id,
+        HashBytes = hashBytes,
+        Version = version,
+    };
 }

@@ -1,16 +1,15 @@
-using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using ProtoBuf;
+using ProtoBuf.Meta;
 using VaettirNet.SecureShare.Secrets;
-using VaettirNet.SecureShare.Serialization;
 
 namespace SecureShare.Tests;
 
 public class SerializationTests
 {
     [Test]
-    public void FullJsonSerializableRoundTripe()
+    public void FullJsonSerializableRoundTrip()
     {
         SecretAttributes value = new() { Value = "Test Value" };
         JsonNode jsonNode = SecretAttributes.GetSerializer().Serialize(value);
@@ -20,7 +19,7 @@ public class SerializationTests
     }
 
     [Test]
-    public void FullBinarySerializableRoundTripe()
+    public void FullBinarySerializableRoundTrip()
     {            
         SecretAttributes value = new() { Value = "Test Value" };
         Span<byte> buffer = stackalloc byte[100];
@@ -30,7 +29,7 @@ public class SerializationTests
     }
     
     [Test]
-    public void BinarySerializableRoundTripe()
+    public void BinarySerializableRoundTrip()
     {
         SecretProtectedValue value = new() { ProtValue = "Test Value" };
         Span<byte> buffer = stackalloc byte[100];
@@ -71,4 +70,37 @@ public class SerializationTests
         reset.Version.Should().Be(4);
         Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
     }
+
+    [Test]
+    public void Thing()
+    {
+        RuntimeTypeModel model = RuntimeTypeModel.Create();
+        model.Add<Container>();
+        model.Add<TestValue>()
+            .AddSubType(1, typeof(SubValue<int>));
+        var t = model.Compile();
+    }
+}
+
+public class Container
+{
+    [ProtoMember(1)]
+    public TestValue Value { get; private set; }
+}
+
+public class TestValue
+{
+    [ProtoMember(1)]
+    public Guid Id { get; private set; }
+}
+
+public class SubValue<T> : TestValue
+{
+    public SubValue(T value)
+    {
+        Value = value;
+    }
+
+    [ProtoMember(2)]
+    public T Value { get; private set; }
 }

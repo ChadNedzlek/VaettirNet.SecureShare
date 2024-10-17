@@ -1,6 +1,5 @@
 using VaettirNet.Threading.Tasks;
 using FluentAssertions;
-using VaettirNet.SecureShare.Sync;
 
 namespace SecureShare.Tests;
 

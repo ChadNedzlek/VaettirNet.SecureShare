@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 

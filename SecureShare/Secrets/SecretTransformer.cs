@@ -1,11 +1,8 @@
 using System;
-using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Text.Json;
-using System.Threading;
 using JetBrains.Annotations;
 using VaettirNet.SecureShare.Serialization;
 
@@ -154,7 +151,7 @@ public class SecretTransformer
             (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),
             VaultArrayPool.Pool);
         
-        return new SealedSecretValue<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, Version, hashBytes);
+        return SealedSecretValue.Create<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, hashBytes, Version);
     }
 
     public void ExportKey(Span<byte> sharedKey, out int bytesWritten)

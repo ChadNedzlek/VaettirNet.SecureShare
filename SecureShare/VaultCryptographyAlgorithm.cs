@@ -176,8 +176,8 @@ public class VaultCryptographyAlgorithm
             stackalloc byte[200],
             (Span<byte> span, out int cb) => serializer.TrySerialize(toSign, span, out cb),
             VaultArrayPool.Pool);
-        
-        return new Signed<T>(toSign, dsa.SignData(data.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
+
+        return Signed.Create(toSign, dsa.SignData(data.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
     }
 
     public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : IBinarySerializable<T>, ISignable<T>

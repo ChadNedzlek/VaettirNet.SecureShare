@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -44,13 +43,13 @@ public class VaultManager
                 _vaultCryptographyAlgorithm.TryEncryptFor(state.Item1, privateInfo, state.Item2, publicInfo, span, out cb),
             VaultArrayPool.Pool);
 
-        return new VaultClientEntry(
-            request.ClientId,
-            request.Description,
-            request.EncryptionKey,
-            request.SigningKey,
-            encryptedClientKey.Span.ToArray()
-        );
+        return new VaultClientEntry{
+            ClientId = request.ClientId,
+            Description = request.Description,
+            EncryptionKey = request.EncryptionKey,
+            SigningKey = request.SigningKey,
+            EncryptedSharedKey = encryptedClientKey.Span.ToArray()
+        };
     }
 
     public void AddAuthenticatedClient(

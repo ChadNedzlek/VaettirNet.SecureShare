@@ -15,20 +15,46 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
     private readonly TypeModel _typeModel;
     private static ProtobufObjectSerializer<T> Instance { get; } = new ();
 
-    private ProtobufObjectSerializer()
+    private ProtobufObjectSerializer(params ReadOnlySpan<Type> additionalTypes)
     {
         var model = RuntimeTypeModel.Create();
         model.Add<T>();
+        foreach (var type in additionalTypes)
+        {
+            model.Add(type);
+        }
         _typeModel = model.Compile();
     }
-
-    public static IBinarySerializer<T> Create()
+    
+    private ProtobufObjectSerializer(Action<RuntimeTypeModel> customize)
     {
-        ValidateType(typeof(T));
-        return Instance;
+        var model = RuntimeTypeModel.Create();
+        model.Add<T>();
+        customize(model);
+        _typeModel = model;
     }
 
-    protected static void ValidateType(Type type)
+    public static IBinarySerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
+    {
+        ValidateType(typeof(T));
+        if (additionalTypes.IsEmpty)
+            return Instance;
+
+        foreach (var type in additionalTypes)
+        {
+            ValidateType(type);
+        }
+
+        return new ProtobufObjectSerializer<T>(additionalTypes);
+    }
+
+    public static ProtobufObjectSerializer<T> Create(Action<RuntimeTypeModel> customize)
+    {
+        ValidateType(typeof(T));
+        return new ProtobufObjectSerializer<T>(customize);
+    }
+
+    private static void ValidateType(Type type)
     {
         IList<CustomAttributeData> attrData = type.GetCustomAttributesData();
         if (attrData.All(a => a.AttributeType != typeof(ProtoContractAttribute)))
@@ -63,19 +89,29 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         }
     }
 
+    public void Serialize(Stream stream, T value)
+    {
+        _typeModel.Serialize(stream, value);
+    }
+
     public T Deserialize(ReadOnlySpan<byte> source)
     {
         unsafe
         {
             fixed (byte* buffer = &source.GetPinnableReference())
             {
-                using PointerMemoryManager<byte> mm = new(buffer, source.Length);
+                using PointerMemoryManager mm = new(buffer, source.Length);
                 return (T)_typeModel.Deserialize(mm.Memory, type:typeof(T));
             }
         }
     }
 
-    private sealed unsafe class PointerMemoryManager<T> : MemoryManager<T> where T : struct
+    public T Deserialize(Stream source)
+    {
+        return (T)_typeModel.Deserialize(source, null, typeof(T));
+    }
+
+    private sealed unsafe class PointerMemoryManager : MemoryManager<byte>
     {
         private readonly void* _pointer;
         private readonly int _length;
@@ -90,9 +126,9 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         {
         }
 
-        public override Span<T> GetSpan()
+        public override Span<byte> GetSpan()
         {
-            return new Span<T>(_pointer, _length);
+            return new Span<byte>(_pointer, _length);
         }
 
         public override MemoryHandle Pin(int elementIndex = 0)

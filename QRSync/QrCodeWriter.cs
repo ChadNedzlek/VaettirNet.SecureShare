@@ -1,10 +1,8 @@
 using System;
-using System.Collections;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Net.Codecrete.QrCodeGenerator;
-using ZXing.QrCode;
 
 namespace QrSync;
 

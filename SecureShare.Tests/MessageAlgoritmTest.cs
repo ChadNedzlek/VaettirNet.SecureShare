@@ -1,4 +1,3 @@
-using System.Text;
 using FluentAssertions;
 using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Vaults;
