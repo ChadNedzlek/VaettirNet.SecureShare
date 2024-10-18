@@ -4,15 +4,23 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract]
+[ProtoContract(SkipConstructor = true)]
 public class RemovedSecretRecord : BinarySerializable<RemovedSecretRecord>, ISignable<RemovedSecretRecord>
 {
     [ProtoMember(1)]
-    public required Guid Id { get; init; }
+    public Guid Id { get; private set; }
     [ProtoMember(2)]
-    public required uint Version { get; init; }
+    public uint Version { get; private set; }
     [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> Signature { get; init; }
+    public ReadOnlyMemory<byte> Signature { get; private set; }
     [ProtoMember(4)]
-    public required Guid Authorizer { get; init; }
+    public Guid Authorizer { get; private set; }
+
+    public RemovedSecretRecord(Guid id, uint version, ReadOnlyMemory<byte> signature, Guid authorizer)
+    {
+        Id = id;
+        Version = version;
+        Signature = signature;
+        Authorizer = authorizer;
+    }
 }

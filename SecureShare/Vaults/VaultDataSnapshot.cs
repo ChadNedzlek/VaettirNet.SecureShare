@@ -16,7 +16,7 @@ public class VaultDataSnapshot : BinarySerializable<VaultDataSnapshot>
     public required ImmutableList<Signed<ClientModificationRecord>> ClientModificications { get; init; }
     [ProtoMember(4)]
     [ProtoMap]
-    public required ImmutableDictionary<VaultIdentifier, UntypedVaultSnapshot> Vaults { get; init; }
+    public required ImmutableList<UntypedVaultSnapshot> Vaults { get; init; }
     [ProtoMember(5)]
     public required ReadOnlyMemory<byte> ManifestSignature { get; init; }
 }

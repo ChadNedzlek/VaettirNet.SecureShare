@@ -4,49 +4,40 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-[ProtoContract]
-public class SealedSecretValue<TAttributes, TProtected> : UntypedSealedValue
+[ProtoContract(SkipConstructor = true)]
+public class SealedSecretSecret<TAttributes, TProtected> : UntypedSealedSecret
     where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>
 {
     [ProtoMember(2)]
-    public required TAttributes Attributes { get; init; }
+    public TAttributes Attributes { get; private set; }
 
     [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> Protected { get; init; }
+    public ReadOnlyMemory<byte> Protected { get; private set; }
 
     [ProtoMember(4)]
-    public required int KeyId { get; init; }
-    
-    public SealedSecretValue<TAttributes, TProtected> WithVersion(int version) => new()
+    public int KeyId { get; private set; }
+
+    public SealedSecretSecret(Guid id, uint version, ReadOnlyMemory<byte> hashBytes, TAttributes attributes, ReadOnlyMemory<byte> @protected, int keyId) : base(id, version, hashBytes)
     {
-        Attributes = Attributes,
-        Protected = Protected,
-        KeyId = KeyId,
-        Id = Id,
-        HashBytes = HashBytes,
-        Version = version,
-    };
+        Attributes = attributes;
+        Protected = @protected;
+        KeyId = keyId;
+    }
+
+    public SealedSecretSecret<TAttributes, TProtected> WithVersion(uint version) => new(Id, version, HashBytes, Attributes, Protected, KeyId);
 }
 
 public static class SealedSecretValue
 {
-    public static SealedSecretValue<TAttributes, TProtected> Create<TAttributes, TProtected>(
+    public static SealedSecretSecret<TAttributes, TProtected> Create<TAttributes, TProtected>(
         Guid id,
         TAttributes attributes,
         ReadOnlyMemory<byte> @protected,
         int keyId,
         ReadOnlyMemory<byte> hashBytes,
-        int version = 0
+        uint version = 0
     )
         where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
-        where TProtected : IBinarySerializable<TProtected> => new()
-    {
-        Attributes = attributes,
-        Protected = @protected,
-        KeyId = keyId,
-        Id = id,
-        HashBytes = hashBytes,
-        Version = version,
-    };
+        where TProtected : IBinarySerializable<TProtected> => new(id, version, hashBytes, attributes, @protected, keyId);
 }

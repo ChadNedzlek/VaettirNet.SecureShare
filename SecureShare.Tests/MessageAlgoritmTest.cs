@@ -11,8 +11,8 @@ public class MessageAlgoritmTest
     {
         VaultCryptographyAlgorithm alg = new();
         
-        alg.Create(out PrivateClientInfo private1, out PublicClientInfo public1);
-        alg.Create(out PrivateClientInfo private2, out PublicClientInfo public2);
+        alg.Create(Guid.NewGuid(), out PrivateClientInfo private1, out PublicClientInfo public1);
+        alg.Create(Guid.NewGuid(), out PrivateClientInfo private2, out PublicClientInfo public2);
 
         byte[] encrypted = new byte[500];
         ReadOnlySpan<byte> inputText = "Test String"u8;

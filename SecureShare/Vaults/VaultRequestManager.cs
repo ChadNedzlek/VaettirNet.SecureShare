@@ -21,7 +21,7 @@ public class VaultRequestManager
     {
         ECDsa dsa = ECDsa.Create();
         Guid clientId = Guid.NewGuid();
-        _encryptionAlgorithm.Create(password, out privateInfo, out var publicInfo);
+        _encryptionAlgorithm.Create(clientId, password, out privateInfo, out var publicInfo);
         return new VaultRequest(clientId, description, publicInfo.EncryptionKey, publicInfo.SigningKey);
     }
 }

@@ -1,14 +1,24 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using ProtoBuf;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract]
+[ProtoContract(SkipConstructor = true)]
 public class UntypedVaultSnapshot
 {
     [ProtoMember(1)]
-    public required ImmutableList<UntypedSealedValue> Secrets { get; init; }
+    public VaultIdentifier Id { get; private set; }
     [ProtoMember(2)]
-    public required ImmutableList<Signed<RemovedSecretRecord>> RemovedSecrets { get; init; }
+    public ImmutableList<UntypedSealedSecret> Secrets { get; private set; }
+    [ProtoMember(3)]
+    public ImmutableList<Signed<RemovedSecretRecord>> RemovedSecrets { get; private set; }
+
+    public UntypedVaultSnapshot(VaultIdentifier id, IEnumerable<UntypedSealedSecret> secrets, IEnumerable<Signed<RemovedSecretRecord>> removedSecrets)
+    {
+        Id = id;
+        Secrets = secrets.ToImmutableList();
+        RemovedSecrets = removedSecrets.ToImmutableList();
+    }
 }

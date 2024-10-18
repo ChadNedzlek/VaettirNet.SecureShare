@@ -13,8 +13,8 @@ public class TransformerTests
             new() { Value = "attribute value" },
             new() { ProtValue = "Secret Cheese" }
         );
-        SealedSecretValue<SecretAttributes, SecretProtectedValue> sealedValue = s.Seal(rawValue);
-        UnsealedSecretValue<SecretAttributes, SecretProtectedValue> outputValue = s.Unseal(sealedValue);
+        SealedSecretSecret<SecretAttributes, SecretProtectedValue> sealedSecret = s.Seal(rawValue);
+        UnsealedSecretValue<SecretAttributes, SecretProtectedValue> outputValue = s.Unseal(sealedSecret);
         outputValue.Should().BeEquivalentTo(rawValue);
     }
 }

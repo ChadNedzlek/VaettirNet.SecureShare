@@ -129,7 +129,7 @@ public class VaultManager
         var manager = new VaultManager(
             transformer,
             encryptionAlgorithm,
-            new SealedVault(new VaultData(), request.ClientId)
+            new SealedVault(new LiveVaultData(), request.ClientId)
         );
         VaultClientEntry clientEntry = manager.ApproveRequest(privateInfo, password, request);
         manager.Vault.Data.AddClient(clientEntry);

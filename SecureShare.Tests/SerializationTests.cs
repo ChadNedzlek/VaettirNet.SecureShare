@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using ProtoBuf.Meta;
+using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
 
 namespace SecureShare.Tests;
@@ -48,26 +49,27 @@ public class SerializationTests
     [Test]
     public void UpdateChangesVersion()
     {
-        SecretStore<SecretAttributes, SecretProtectedValue> store = new(SecretTransformer.CreateRandom());
+        VaultCryptographyAlgorithm alg = new VaultCryptographyAlgorithm();
+        SecretStore<SecretAttributes, SecretProtectedValue> store = new(null, SecretTransformer.CreateRandom());
         Guid id = store.Add("Attribute Value", "Protected Value");
-        SealedSecretValue<SecretAttributes, SecretProtectedValue> sealedValue = store.Get(id);
-        sealedValue.Version.Should().Be(1);
-        sealedValue.Attributes.Value.Should().Be("Attribute Value");
+        SealedSecretSecret<SecretAttributes, SecretProtectedValue> sealedSecret = store.Get(id);
+        sealedSecret.Version.Should().Be(1);
+        sealedSecret.Attributes.Value.Should().Be("Attribute Value");
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Protected Value"));
-        SealedSecretValue<SecretAttributes, SecretProtectedValue> modifiedAttr = store.Get(id);
+        SealedSecretSecret<SecretAttributes, SecretProtectedValue> modifiedAttr = store.Get(id);
         modifiedAttr.Version.Should().Be(2);
         modifiedAttr.Attributes.Value.Should().Be("Different Value");
-        Convert.ToBase64String(modifiedAttr.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
+        Convert.ToBase64String(modifiedAttr.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Different Protected Value"));
-        SealedSecretValue<SecretAttributes, SecretProtectedValue> modifiedProtectedS = store.Get(id);
+        SealedSecretSecret<SecretAttributes, SecretProtectedValue> modifiedProtectedS = store.Get(id);
         modifiedProtectedS.Version.Should().Be(3);
         modifiedProtectedS.Attributes.Value.Should().Be("Different Value");
-        Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
+        Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
         Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(modifiedAttr.HashBytes.Span));
         store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Attribute Value", "Protected Value"));
-        SealedSecretValue<SecretAttributes, SecretProtectedValue> reset = store.Get(id);
+        SealedSecretSecret<SecretAttributes, SecretProtectedValue> reset = store.Get(id);
         reset.Version.Should().Be(4);
-        Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedValue.HashBytes.Span));
+        Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
     }
 
     [Test]

@@ -19,7 +19,7 @@ public class VaultSnapshotSerializer
             {
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
-                var sealedValueType = model.Add<UntypedSealedValue>();
+                var sealedValueType = model.Add<UntypedSealedSecret>();
                 int fieldNumber = 20;
                 foreach (Type type in sealedSecretTypes)
                 {
@@ -60,7 +60,7 @@ public class VaultSnapshotSerializer
             where TAttribute : IBinarySerializable<TAttribute>, IJsonSerializable<TAttribute>
             where TProtected : IBinarySerializable<TProtected>
         {
-            return new Builder(SecretTypes.Add(typeof(SealedSecretValue<TAttribute, TProtected>)));
+            return new Builder(SecretTypes.Add(typeof(SealedSecretSecret<TAttribute, TProtected>)));
         }
 
         public VaultSnapshotSerializer Build()

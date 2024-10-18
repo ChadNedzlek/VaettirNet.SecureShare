@@ -26,7 +26,7 @@ public class SecretTransformer
     }
 
     public int KeySize { get; }
-    public int Version => 1;
+    public uint Version => 1;
     public int CurrentKeyId { get; } = 1;
 
     public static SecretTransformer CreateRandom()
@@ -92,7 +92,7 @@ public class SecretTransformer
         return enc.TryEncrypt(input, destination, out cb);
     }
 
-    private bool TryUnprotect(ReadOnlySpan<byte> input, int keyId, int version, Span<byte> destination, out int cb)
+    private bool TryUnprotect(ReadOnlySpan<byte> input, int keyId, uint version, Span<byte> destination, out int cb)
     {
         if (keyId != CurrentKeyId || version != Version)
             throw new NotSupportedException($"Expected version {Version} with key id {CurrentKeyId}");
@@ -102,26 +102,26 @@ public class SecretTransformer
     }
 
     public UnsealedSecretValue<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
-        SealedSecretValue<TAttributes, TProtected> value
+        SealedSecretSecret<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
-        return UnsealInternal(value);
+        return UnsealInternal(secret);
     }
 
     private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
-        SealedSecretValue<TAttributes, TProtected> value
+        SealedSecretSecret<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
         using RentedSpan<byte> decryptedValue = Helpers.GrowingSpan(
             stackalloc byte[100],
-            (Span<byte> s, out int cb) => TryUnprotect(value.Protected.Span, value.KeyId, value.Version, s, out cb),
+            (Span<byte> s, out int cb) => TryUnprotect(secret.Protected.Span, secret.KeyId, secret.Version, s, out cb),
             VaultArrayPool.Pool);
 
-        return new (value.Id, value.Attributes, TProtected.GetBinarySerializer().Deserialize(decryptedValue.Span));
+        return new (secret.Id, secret.Attributes, TProtected.GetBinarySerializer().Deserialize(decryptedValue.Span));
     }
 
-    public SealedSecretValue<TAttributes, TProtected> Seal<TAttributes, TProtected>(
+    public SealedSecretSecret<TAttributes, TProtected> Seal<TAttributes, TProtected>(
         UnsealedSecretValue<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {

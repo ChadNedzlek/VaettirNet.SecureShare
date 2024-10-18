@@ -81,34 +81,27 @@ public class VaultTest
                 )
             ],
             ManifestSignature = new byte[] { 16, 17, 18 },
-            Vaults = new Dictionary<VaultIdentifier, UntypedVaultSnapshot>
-            {
-                {
-                    VaultIdentifier.Create<SecretAttributes, SecretProtectedValue>(), new UntypedVaultSnapshot
-                    {
-                        Secrets =
-                        [
-                            transformer.Seal(
-                                new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(
-                                    secret,
-                                    new() { Value = "Attribute Value" },
-                                    new() { ProtValue = "Protected Value" }
-                                )
+            Vaults =
+            [
+                new UntypedVaultSnapshot(
+                    VaultIdentifier.Create<SecretAttributes, SecretProtectedValue>(),
+                    [
+                        transformer.Seal(
+                            new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(
+                                secret,
+                                new() { Value = "Attribute Value" },
+                                new() { ProtValue = "Protected Value" }
                             )
-                        ],
-                        RemovedSecrets =
-                        [
-                            Signed.Create(
-                                new RemovedSecretRecord
-                                {
-                                    Authorizer = firstClient, Id = blockedSecret, Version = 1, Signature = new byte[] { 20, 21, 22 },
-                                },
-                                new byte[] { 23, 24, 25 }
-                            )
-                        ]
-                    }
-                }
-            }.ToImmutableDictionary()
+                        )
+                    ],
+                    [
+                        Signed.Create(
+                            new RemovedSecretRecord(blockedSecret, 1, new byte[] { 20, 21, 22 }, firstClient),
+                            new byte[] { 23, 24, 25 }
+                        )
+                    ]
+                )
+            ]
         };
 
         VaultSnapshotSerializer serializer = VaultSnapshotSerializer.CreateBuilder()
