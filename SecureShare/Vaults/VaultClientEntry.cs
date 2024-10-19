@@ -8,15 +8,27 @@ public class VaultClientEntry
 {
     public PublicClientInfo PublicInfo => new(EncryptionKey, SigningKey);
     [ProtoMember(1)]
-    public required Guid ClientId { get; init; }
+    public Guid ClientId { get; private set; }
     [ProtoMember(2)]
-    public required string Description { get; init; }
+    public string Description { get; private set; }
     [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> EncryptionKey { get; init; }
+    public ReadOnlyMemory<byte> EncryptionKey { get; private set; }
     [ProtoMember(4)]
-    public required ReadOnlyMemory<byte> SigningKey { get; init; }
+    public ReadOnlyMemory<byte> SigningKey { get; private set; }
     [ProtoMember(5)]
-    public ReadOnlyMemory<byte> EncryptedSharedKey { get; init; }
+    public ReadOnlyMemory<byte> EncryptedSharedKey { get; private set; }
+    [ProtoMember(6)]
+    public Guid Authorizer { get; private set; }
+
+    public VaultClientEntry(Guid clientId, string description, ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey, ReadOnlyMemory<byte> encryptedSharedKey, Guid authorizer)
+    {
+        ClientId = clientId;
+        Description = description;
+        EncryptionKey = encryptionKey;
+        SigningKey = signingKey;
+        EncryptedSharedKey = encryptedSharedKey;
+        Authorizer = authorizer;
+    }
 
     public void Deconstruct(
         out Guid clientId,

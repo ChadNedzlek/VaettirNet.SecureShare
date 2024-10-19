@@ -4,17 +4,26 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract]
-public class ClientModificationRecord : BinarySerializable<ClientModificationRecord>, ISignable<ClientModificationRecord>
+[ProtoContract(SkipConstructor = true)]
+public class ClientModificationRecord : BinarySerializable<ClientModificationRecord>, IBinarySignable<ClientModificationRecord>
 {
     [ProtoMember(1)]
-    public required ClientAction Action { get; init; }
+    public ClientAction Action { get; private set; }
     [ProtoMember(2)]
-    public required Guid Client { get; init; }
+    public Guid Client { get; private set; }
     [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> SigningKey { get; init; }
+    public ReadOnlyMemory<byte> SigningKey { get; private set; }
     [ProtoMember(4)]
-    public required ReadOnlyMemory<byte> EncryptionKey { get; init; }
+    public ReadOnlyMemory<byte> EncryptionKey { get; private set; }
     [ProtoMember(5)]
-    public required Guid Authorizer { get; init; }
+    public Guid Signer { get; private set; }
+
+    public ClientModificationRecord(ClientAction action, Guid client, ReadOnlyMemory<byte> signingKey, ReadOnlyMemory<byte> encryptionKey, Guid authorizer)
+    {
+        Action = action;
+        Client = client;
+        SigningKey = signingKey;
+        EncryptionKey = encryptionKey;
+        Signer = authorizer;
+    }
 }

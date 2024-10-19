@@ -13,7 +13,7 @@ namespace VaettirNet.SecureShare.Secrets;
 
 public class SecretTransformer
 {
-    private static readonly int s_keySizeInBytes = 256 / 8;
+    public static readonly int KeySizeInBytes = 256 / 8;
 
     private readonly ConcurrentBag<Aes> _encryptors = new();
 
@@ -31,11 +31,11 @@ public class SecretTransformer
 
     public static SecretTransformer CreateRandom()
     {
-        Span<byte> key = stackalloc byte[s_keySizeInBytes];
+        Span<byte> key = stackalloc byte[KeySizeInBytes];
         Span<byte> protectedKey = stackalloc byte[300];
         RandomNumberGenerator.Fill(key);
         SetKey(key, protectedKey, out int cb);
-        return new SecretTransformer(protectedKey[..cb].ToImmutableArray(), s_keySizeInBytes);
+        return new SecretTransformer(protectedKey[..cb].ToImmutableArray(), KeySizeInBytes);
     }
 
     public static SecretTransformer CreateFromSharedKey(ReadOnlySpan<byte> sharedKey)
@@ -113,7 +113,7 @@ public class SecretTransformer
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
-        using RentedSpan<byte> decryptedValue = Helpers.GrowingSpan(
+        using RentedSpan<byte> decryptedValue = SpanHelpers.GrowingSpan(
             stackalloc byte[100],
             (Span<byte> s, out int cb) => TryUnprotect(secret.Protected.Span, secret.KeyId, secret.Version, s, out cb),
             VaultArrayPool.Pool);
@@ -127,13 +127,13 @@ public class SecretTransformer
     {
         using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Span<byte> stackBuffer = stackalloc byte[50];
-        using RentedSpan<byte> attr = Helpers.GrowingSpan(stackBuffer,
+        using RentedSpan<byte> attr = SpanHelpers.GrowingSpan(stackBuffer,
             (Span<byte> s, out int cb) => TAttributes.GetBinarySerializer().TrySerialize(secret.Attributes, s, out cb),
             VaultArrayPool.Pool);
         hash.AppendData(MemoryMarshal.AsBytes([attr.Span.Length]));
         hash.AppendData(attr.Span);
         
-        using RentedSpan<byte> serialized = Helpers.GrowingSpan(stackBuffer,
+        using RentedSpan<byte> serialized = SpanHelpers.GrowingSpan(stackBuffer,
             (Span<byte> s, out int cb) => TProtected.GetBinarySerializer().TrySerialize(secret.Protected, s, out cb),
             VaultArrayPool.Pool);
         hash.AppendData(MemoryMarshal.AsBytes([serialized.Span.Length]));
@@ -145,7 +145,7 @@ public class SecretTransformer
             throw new InvalidOperationException();
         }
 
-        using RentedSpan<byte> encrypted = Helpers.GrowingSpan(
+        using RentedSpan<byte> encrypted = SpanHelpers.GrowingSpan(
             stackalloc byte[50],
             serialized.Span,
             (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),

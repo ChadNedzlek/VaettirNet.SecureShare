@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -9,64 +10,41 @@ public class VaultManager
     private readonly VaultCryptographyAlgorithm _vaultCryptographyAlgorithm;
     private readonly SecretTransformer _transformer;
 
-    public VaultManager(SecretTransformer transformer, VaultCryptographyAlgorithm vaultCryptographyAlgorithm, SealedVault vault)
+    public VaultManager(SecretTransformer transformer, VaultCryptographyAlgorithm vaultCryptographyAlgorithm, LiveVaultData vault)
     {
         _transformer = transformer;
         _vaultCryptographyAlgorithm = vaultCryptographyAlgorithm;
         Vault = vault;
     }
 
-    public SealedVault Vault { get; }
+    public LiveVaultData Vault { get; }
 
-    public void AddAuthenticatedClient(PrivateClientInfo privateInfo, VaultRequest request)
-    {
-        AddAuthenticatedClient(privateInfo, default, request);
-    }
-
-    public VaultClientEntry ApproveRequest(PrivateClientInfo privateInfo, VaultRequest request)
-    {
-        return ApproveRequest(privateInfo, default, request);
-    }
-
-    public VaultClientEntry ApproveRequest(
-        PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password,
-        VaultRequest request)
+    public VaultClientEntry ApproveRequest(RefSigner signer, VaultRequest request)
     {
         Span<byte> sharedKey = stackalloc byte[_transformer.KeySize];
         var publicInfo = request.PublicInfo;
         _transformer.ExportKey(sharedKey, out _);
-        using RentedSpan<byte> encryptedClientKey = Helpers.GrowingSpan(
+        using RentedSpan<byte> encryptedClientKey = SpanHelpers.GrowingSpan(
             stackalloc byte[100],
-            RefTuple.Create((ReadOnlySpan<byte>)sharedKey, password),
-            (Span<byte> span, RefTuple<ReadOnlySpan<byte>, ReadOnlySpan<char>> state, out int cb) =>
-                _vaultCryptographyAlgorithm.TryEncryptFor(state.Item1, privateInfo, state.Item2, publicInfo, span, out cb),
-            VaultArrayPool.Pool);
+            RefTuple.Create(signer, (ReadOnlySpan<byte>)sharedKey),
+            (Span<byte> span, RefTuple<RefSigner, ReadOnlySpan<byte>> state, out int cb) =>
+                _vaultCryptographyAlgorithm.TryEncryptFor(state.Item2, state.Item1.Keys, state.Item1.Password, publicInfo, span, out cb),
+            VaultArrayPool.Pool
+        );
 
-        return new VaultClientEntry{
-            ClientId = request.ClientId,
-            Description = request.Description,
-            EncryptionKey = request.EncryptionKey,
-            SigningKey = request.SigningKey,
-            EncryptedSharedKey = encryptedClientKey.Span.ToArray()
-        };
+        return new VaultClientEntry(
+            request.ClientId,
+            request.Description,
+            request.EncryptionKey,
+            request.SigningKey,
+            encryptedClientKey.Span.ToArray(),
+            signer.Keys.ClientId
+        );
     }
 
-    public void AddAuthenticatedClient(
-        PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password,
-        VaultRequest request
-    )
+    public void AddAuthenticatedClient(Signer signer, VaultRequest request)
     {
-        Vault.Data.AddClient(ApproveRequest(privateInfo, password, request));
-        Vault.Data.AddModificationRecord(
-            SignRecord(privateInfo, password,
-                new ClientModificationRecord
-                {
-                    Action = ClientAction.Added, EncryptionKey = request.EncryptionKey, SigningKey = request.SigningKey,
-                    Authorizer = Vault.ClientId, Client = request.ClientId
-                }));
-        
+        Vault.AddClient(ApproveRequest(signer, request), signer);
     }
 
     private Signed<ClientModificationRecord> SignRecord(
@@ -75,31 +53,21 @@ public class VaultManager
         ClientModificationRecord clientModificationRecord) =>
         _vaultCryptographyAlgorithm.Sign(clientModificationRecord, privateInfo, password);
 
-    public UnsealedVault Unseal()
-    {
-        return new UnsealedVault(Vault.Data, _transformer);
-    }
-
     public static VaultManager Import(
         VaultCryptographyAlgorithm messageAlg,
-        SealedVault vault,
+        VaultDataSnapshot vault,
         PrivateClientInfo privateInfo,
         ReadOnlySpan<char> password = default
     )
     {
-        if (!vault.Data.TryGetClient(vault.ClientId, out VaultClientEntry? clientEntry))
+        LiveVaultData live = LiveVaultData.FromSnapshot(vault);
+        if (!live.TryGetClient(privateInfo.ClientId, out VaultClientEntry? clientEntry))
             throw new ArgumentException("Client ID is not present in vault data");
-        
-        ImmutableArray<Signed<ClientModificationRecord>> mods = vault.Data.GetModificationRecords(vault.ClientId);
-        if (mods.Length != 1)
-        {
-            throw new ArgumentException("Could not find addition record");
-        }
 
-        if (!vault.Data.TryGetClient(mods[0].Authorizer, out VaultClientEntry? authorizer))
+        if (!live.TryGetClient(clientEntry.Authorizer, out VaultClientEntry? authorizer))
             throw new ArgumentException("Authorizer is not present");
 
-        using var sharedKey = Helpers.GrowingSpan(
+        using var sharedKey = SpanHelpers.GrowingSpan(
             stackalloc byte[300],
             password,
             (Span<byte> s, ReadOnlySpan<char> pw, out int cb) => messageAlg.TryDecryptFrom(
@@ -111,17 +79,25 @@ public class VaultManager
                 out cb),
             VaultArrayPool.Pool);
 
-        return new VaultManager(SecretTransformer.CreateFromSharedKey(sharedKey.Span), messageAlg, vault);
+        return new VaultManager(SecretTransformer.CreateFromSharedKey(sharedKey.Span), messageAlg, live);
     }
 
-    public static VaultManager Initialize(string clientDescription, out PrivateClientInfo privateInfo)
+    public static VaultManager Initialize(
+        string clientDescription,
+        VaultCryptographyAlgorithm vaultCryptographyAlgorithm,
+        out PrivateClientInfo privateInfo
+    )
     {
-        return Initialize(clientDescription, default, out privateInfo);
+        return Initialize(clientDescription, default, vaultCryptographyAlgorithm, out privateInfo);
     }
 
-    public static VaultManager Initialize(string clientDescription, ReadOnlySpan<char> password, out PrivateClientInfo privateInfo)
+    public static VaultManager Initialize(
+        string clientDescription,
+        ReadOnlySpan<char> password,
+        VaultCryptographyAlgorithm encryptionAlgorithm,
+        out PrivateClientInfo privateInfo
+    )
     {
-        VaultCryptographyAlgorithm encryptionAlgorithm = new();
         var requestManager = new VaultRequestManager(encryptionAlgorithm);
         var request = requestManager.CreateRequest(clientDescription, out privateInfo);
 
@@ -129,10 +105,24 @@ public class VaultManager
         var manager = new VaultManager(
             transformer,
             encryptionAlgorithm,
-            new SealedVault(new LiveVaultData(), request.ClientId)
+            new LiveVaultData()
         );
-        VaultClientEntry clientEntry = manager.ApproveRequest(privateInfo, password, request);
-        manager.Vault.Data.AddClient(clientEntry);
+        RefSigner signer = new(encryptionAlgorithm, privateInfo, password);
+        VaultClientEntry clientEntry = manager.ApproveRequest(signer, request);
+        manager.Vault.AddClient(clientEntry, signer);
         return manager;
+    }
+
+    public SecretTransformer GetTransformer(PrivateClientInfo clientInfo)
+    {
+        VaultClientEntry vaultClient = Vault.Clients.First(v => v.ClientId == clientInfo.ClientId);
+        VaultClientEntry authorizer = Vault.Clients.First(v => v.ClientId == vaultClient.Authorizer);
+        ReadOnlySpan<byte> encryptedKey = vaultClient.EncryptedSharedKey.Span;
+        Span<byte> decryptedKey = stackalloc byte[SecretTransformer.KeySizeInBytes];
+        if (!_vaultCryptographyAlgorithm.TryDecryptFrom(encryptedKey, clientInfo, authorizer.PublicInfo, decryptedKey, out int written))
+        {
+            throw new InvalidOperationException();
+        }
+        return SecretTransformer.CreateFromSharedKey(decryptedKey);
     }
 }

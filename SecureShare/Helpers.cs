@@ -45,10 +45,10 @@ public static class RefTuple
         => new(item1, item2, item3);
 }
 
-internal static class Helpers
+public static class SpanHelpers
 {
     [MustDisposeResource]
-    internal static RentedSpan<T> GrowingSpan<T>(Span<T> startSpan, SpanFunc<Span<T>, bool> callback, ArrayPool<T> pool, Func<int,int>? growth = null)
+    public static RentedSpan<T> GrowingSpan<T>(Span<T> startSpan, SpanFunc<Span<T>, bool> callback, ArrayPool<T> pool, Func<int,int>? growth = null)
     {
         growth ??= x => x << 2;
         if (callback(startSpan, out int cb))
@@ -70,7 +70,7 @@ internal static class Helpers
     }
     
     [MustDisposeResource]
-    internal static RentedSpan<T> GrowingSpan<T, TState>(
+    public static RentedSpan<T> GrowingSpan<T, TState>(
         Span<T> startSpan,
         TState state,
         SpanStateFunc<Span<T>, TState, bool> callback,

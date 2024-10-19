@@ -160,17 +160,15 @@ public class VaultCryptographyAlgorithm
         );
     }
 
-    public Signed<T> Sign<T>(T toSign, PrivateClientInfo privateInfo, ReadOnlySpan<char> password) where T : ISignable<T>
+    public Signed<T> Sign<T>(T toSign, PrivateClientInfo privateInfo, ReadOnlySpan<char> password) where T : ISignable
     {
-
-        IBinarySerializer<T> serializer = T.GetBinarySerializer();
-        using RentedSpan<byte> data = Helpers.GrowingSpan(
+        using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
-            (Span<byte> span, out int cb) => serializer.TrySerialize(toSign, span, out cb),
+            (Span<byte> span, out int cb) => toSign.TryGetDataToSign(span, out cb),
             VaultArrayPool.Pool);
 
         byte[] signature = GetSignatureForByteArray(privateInfo, password, data.Span);
-        return Signed.Create(toSign, signature);
+        return Signed.Create(toSign, privateInfo.ClientId, signature);
     }
 
     public byte[] GetSignatureForByteArray(PrivateClientInfo privateInfo, ReadOnlySpan<char> password, Span<byte> data)
@@ -189,17 +187,16 @@ public class VaultCryptographyAlgorithm
         return signature;
     }
 
-    public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : IBinarySerializable<T>, ISignable<T>
+    public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : ISignable
     {
         T unvalidated = toSign.DangerousGetPayload();
         
         var dsa = ECDsa.Create();
         dsa.ImportSubjectPublicKeyInfo(publicInfo.SigningKey.Span, out _);
 
-        IBinarySerializer<T> serializer = T.GetBinarySerializer();
-        using RentedSpan<byte> data = Helpers.GrowingSpan(
+        using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
-            (Span<byte> span, out int cb) => serializer.TrySerialize(unvalidated, span, out cb),
+            (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
             VaultArrayPool.Pool);
 
         if (!dsa.VerifyData(data.Span, toSign.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))

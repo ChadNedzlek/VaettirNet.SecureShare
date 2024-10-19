@@ -10,31 +10,40 @@ using ProtoBuf.Meta;
 namespace VaettirNet.SecureShare.Serialization;
 
 public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
-    where T : IBinarySerializable<T>
 {
-    private readonly TypeModel _typeModel;
+    private readonly RuntimeTypeModel _typeModel;
     private static ProtobufObjectSerializer<T> Instance { get; } = new ();
 
     private ProtobufObjectSerializer(params ReadOnlySpan<Type> additionalTypes)
     {
-        var model = RuntimeTypeModel.Create();
-        model.Add<T>();
+        _typeModel = RuntimeTypeModel.Create();
+        _typeModel.Add<T>();
+        _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
         foreach (var type in additionalTypes)
         {
-            model.Add(type);
+            _typeModel.Add(type);
         }
-        _typeModel = model.Compile();
-    }
-    
-    private ProtobufObjectSerializer(Action<RuntimeTypeModel> customize)
-    {
-        var model = RuntimeTypeModel.Create();
-        model.Add<T>();
-        customize(model);
-        _typeModel = model;
     }
 
-    public static IBinarySerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
+    private ProtobufObjectSerializer(Action<RuntimeTypeModel> customize)
+    {
+        _typeModel = RuntimeTypeModel.Create();
+        _typeModel.Add<T>();
+        _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
+        customize(_typeModel);
+    }
+
+    private static DateTimeOffset TicksToDateTimeOffsetUtc(long t)
+    {
+        return new DateTimeOffset(t, TimeSpan.Zero);
+    }
+
+    private static long DateTimeOffsetToTicksUtc(DateTimeOffset d)
+    {
+        return d.UtcTicks;
+    }
+
+    public static ProtobufObjectSerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
     {
         ValidateType(typeof(T));
         if (additionalTypes.IsEmpty)
@@ -60,11 +69,6 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         if (attrData.All(a => a.AttributeType != typeof(ProtoContractAttribute)))
         {
             throw new ArgumentException($"Type {type.Name} must have [ProtoContract]");
-        }
-
-        if (type.GetConstructor([]) == null)
-        {
-            throw new ArgumentException($"Type {type.Name} must have parameterless constructor");
         }
     }
 

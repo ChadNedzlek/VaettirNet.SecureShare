@@ -3,7 +3,16 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare;
 
-public interface ISignable<TSelf> : IBinarySerializable<TSelf> where TSelf : IBinarySerializable<TSelf>
+public interface ISignable
 {
-    Guid Authorizer { get; }
+    bool TryGetDataToSign(Span<byte> destination, out int cb);
+}
+
+public interface IBinarySignable<TSelf> : ISignable, IBinarySerializable<TSelf>
+    where TSelf : IBinarySerializable<TSelf>
+{
+    bool ISignable.TryGetDataToSign(Span<byte> destination, out int cb)
+    {
+        return TSelf.GetBinarySerializer().TrySerialize((TSelf)this, destination, out cb);
+    }
 }

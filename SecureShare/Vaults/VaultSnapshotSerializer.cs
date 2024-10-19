@@ -26,8 +26,7 @@ public class VaultSnapshotSerializer
                     sealedValueType.AddSubType(fieldNumber++, type).UseConstructor = false;
                 }
 
-                void AddSignedType<T>(RuntimeTypeModel runtimeTypeModel)
-                    where T : ISignable<T>
+                void AddSignedType<T>(RuntimeTypeModel runtimeTypeModel) where T : ISignable
                 {
                     runtimeTypeModel.Add<Signed<T>>();
                 }

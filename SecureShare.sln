@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QRSync", "QRSync\QRSync.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QRSync.Tests", "QRSync.Tests\QRSync.Tests.csproj", "{594E3F49-7D5E-47C6-8C2C-E6B0F957A62D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sec", "sec\sec.csproj", "{277FC320-BBFE-43DB-9B3C-F08F75D009B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{594E3F49-7D5E-47C6-8C2C-E6B0F957A62D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{594E3F49-7D5E-47C6-8C2C-E6B0F957A62D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{594E3F49-7D5E-47C6-8C2C-E6B0F957A62D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{277FC320-BBFE-43DB-9B3C-F08F75D009B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{277FC320-BBFE-43DB-9B3C-F08F75D009B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{277FC320-BBFE-43DB-9B3C-F08F75D009B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{277FC320-BBFE-43DB-9B3C-F08F75D009B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

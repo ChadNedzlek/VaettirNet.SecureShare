@@ -27,8 +27,8 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
     {
         _name = name;
         _transformer = transformer;
-        _secrets = vault.Secrets.Cast<SealedSecretSecret<TAttributes, TProtected>>().ToDictionary(s => s.Id);
-        _deleted = vault.RemovedSecrets.ToList();
+        _secrets = vault.Secrets?.Cast<SealedSecretSecret<TAttributes, TProtected>>().ToDictionary(s => s.Id) ?? [];
+        _deleted = vault.RemovedSecrets?.ToList() ?? [];
     }
 
     public UntypedVaultSnapshot ToSnapshot()
@@ -84,7 +84,7 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
     {
         if (_secrets.Remove(id, out SealedSecretSecret<TAttributes, TProtected>? secret))
         {
-            _deleted.Add(algorithm.Sign(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes, key.ClientId), key, password));
+            _deleted.Add(algorithm.Sign(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes), key, password));
         }
     }
 }

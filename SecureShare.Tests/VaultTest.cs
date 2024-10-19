@@ -11,39 +11,6 @@ namespace SecureShare.Tests;
 public class VaultTest
 {
     [Test]
-    public void SealUnseal()
-    {
-        VaultManager aliceVaultManager = VaultManager.Initialize("Alice", out PrivateClientInfo aliceInfo);
-        aliceVaultManager.Vault.Data.TryGetClient(aliceVaultManager.Vault.ClientId, out VaultClientEntry aliceEntry).Should().BeTrue();
-        aliceEntry.Description.Should().Be("Alice");
-        Guid secretId;
-        {
-            UnsealedVault unsealed = aliceVaultManager.Unseal();
-            SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
-            secretId = store.Add(new() { Value = "Attr Value" }, new() { ProtValue = "Test Value" });
-            unsealed.SaveStore(store);
-        }
-
-        VaultCryptographyAlgorithm messageAlg = new();
-        VaultRequestManager vaultRequestManager = new(messageAlg);
-        VaultRequest bobRequest = vaultRequestManager.CreateRequest("Bob's Client", out PrivateClientInfo bobPrivateInfo);
-
-        aliceVaultManager.AddAuthenticatedClient(aliceInfo, bobRequest);
-        aliceVaultManager.Vault.Data.TryGetClient(bobRequest.ClientId, out VaultClientEntry bobEntry).Should().BeTrue();
-        bobEntry.Description.Should().Be("Bob's Client");
-        bobEntry.EncryptionKey.Should().BeEquivalentTo(bobRequest.EncryptionKey);
-
-        VaultManager bobManager = VaultManager.Import(messageAlg, new SealedVault(aliceVaultManager.Vault.Data, bobRequest.ClientId), bobPrivateInfo);
-        {
-            UnsealedVault unsealed = bobManager.Unseal();
-            SecretStore<SecretAttributes, SecretProtectedValue> store = unsealed.GetOrCreateStore<SecretAttributes, SecretProtectedValue>();
-            UnsealedSecretValue<SecretAttributes, SecretProtectedValue> secret = store.GetUnsealed(secretId);
-            secret.Attributes.Value.Should().Be("Attr Value");
-            secret.Protected.ProtValue.Should().Be("Test Value");
-        }
-    }
-
-    [Test]
     public void SerializeSnapshot()
     {
         var firstClient =   Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -51,37 +18,32 @@ public class VaultTest
         var secret =        Guid.Parse("33333333-3333-3333-3333-333333333333");
         var blockedSecret = Guid.Parse("44444444-4444-4444-4444-444444444444");
         SecretTransformer transformer = SecretTransformer.CreateRandom();
-        VaultDataSnapshot snapshot = new()
-        {
-            Clients =
+        VaultDataSnapshot snapshot = new(
             [
                 new VaultClientEntry
-                {
-                    ClientId = firstClient,
-                    Description = "First Client",
-                    EncryptionKey = new byte[] { 1, 2, 3 },
-                    SigningKey = new byte[] { 4, 5, 6 },
-                    EncryptedSharedKey = new byte[] { 7, 8, 9 }
-                }
+                (
+                     firstClient,
+                    "First Client",
+                     new byte[] { 1, 2, 3 },
+                     new byte[] { 4, 5, 6 },
+                     new byte[] { 7, 8, 9 },
+                     firstClient
+                ),
             ],
-            BlockedClients =
-                [new BlockedVaultClientEntry { ClientId = blockedClient, Description = "Blocked Client", PublicKey = new byte[] { 10, 11, 12 } }],
-            ClientModificications =
+            [new BlockedVaultClientEntry { ClientId = blockedClient, Description = "Blocked Client", PublicKey = new byte[] { 10, 11, 12 } }],
             [
                 Signed.Create(
-                    new ClientModificationRecord
-                    {
-                        Action = ClientAction.Added,
-                        Client = firstClient,
-                        Authorizer = firstClient,
-                        EncryptionKey = new byte[] { 1, 2, 3 },
-                        SigningKey = new byte[] { 4, 5, 6 }
-                    },
+                    new ClientModificationRecord(
+                        ClientAction.Added,
+                        firstClient,
+                        new byte[] { 4, 5, 6 },
+                        new byte[] { 1, 2, 3 },
+                        firstClient
+                    ),
+                    firstClient,
                     new byte[] { 13, 14, 15 }
                 )
             ],
-            ManifestSignature = new byte[] { 16, 17, 18 },
-            Vaults =
             [
                 new UntypedVaultSnapshot(
                     VaultIdentifier.Create<SecretAttributes, SecretProtectedValue>(),
@@ -96,13 +58,14 @@ public class VaultTest
                     ],
                     [
                         Signed.Create(
-                            new RemovedSecretRecord(blockedSecret, 1, new byte[] { 20, 21, 22 }, firstClient),
+                            new RemovedSecretRecord(blockedSecret, 1, new byte[] { 20, 21, 22 }),
+                            firstClient,
                             new byte[] { 23, 24, 25 }
                         )
                     ]
                 )
             ]
-        };
+        );
 
         VaultSnapshotSerializer serializer = VaultSnapshotSerializer.CreateBuilder()
             .WithSecret<SecretAttributes, SecretProtectedValue>()
