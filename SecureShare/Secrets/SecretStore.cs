@@ -78,13 +78,11 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
         }
     }
 
-    public void Remove(Guid id, VaultCryptographyAlgorithm algorithm, PrivateClientInfo key) => Remove(id, algorithm, key, default);
-
-    public void Remove(Guid id, VaultCryptographyAlgorithm algorithm, PrivateClientInfo key, ReadOnlySpan<char> password)
+    public void Remove(Guid id, VaultCryptographyAlgorithm algorithm, PrivateClientInfo key)
     {
         if (_secrets.Remove(id, out SealedSecretSecret<TAttributes, TProtected>? secret))
         {
-            _deleted.Add(algorithm.Sign(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes), key, password));
+            _deleted.Add(algorithm.Sign(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes), key));
         }
     }
 }

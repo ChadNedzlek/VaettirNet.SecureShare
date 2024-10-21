@@ -6,7 +6,7 @@ namespace VaettirNet.SecureShare.Vaults;
 [ProtoContract(UseProtoMembersOnly = true, SkipConstructor = true)]
 public class VaultClientEntry
 {
-    public PublicClientInfo PublicInfo => new(EncryptionKey, SigningKey);
+    public PublicClientInfo PublicInfo => new(ClientId, EncryptionKey, SigningKey);
     [ProtoMember(1)]
     public Guid ClientId { get; private set; }
     [ProtoMember(2)]

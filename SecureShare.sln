@@ -12,7 +12,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QRSync", "QRSync\QRSync.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QRSync.Tests", "QRSync.Tests\QRSync.Tests.csproj", "{594E3F49-7D5E-47C6-8C2C-E6B0F957A62D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sec", "sec\sec.csproj", "{277FC320-BBFE-43DB-9B3C-F08F75D009B6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureShare.CommandLine", "SecureShare.CommandLine\SecureShare.CommandLine.csproj", "{277FC320-BBFE-43DB-9B3C-F08F75D009B6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

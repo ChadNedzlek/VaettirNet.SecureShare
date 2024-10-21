@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine;
 
 [AttributeUsage(AttributeTargets.Class)]
 public class CommandAttribute : Attribute

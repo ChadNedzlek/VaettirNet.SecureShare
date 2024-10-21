@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Mono.Options;
+using VaettirNet.SecureShare.CommandLine.Commands;
+using VaettirNet.SecureShare.CommandLine.Services;
+using VaettirNet.SecureShare.Vaults;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine;
 
 internal class Processor
 {
@@ -14,8 +19,17 @@ internal class Processor
         _args = args;
     }
 
-    public int Run()
+    public async Task<int> Run()
     {
+        ServiceCollection collection = new();
+        collection.AddSingleton<CommandPrompt>();
+        collection.AddSingleton(
+            VaultSnapshotSerializer.CreateBuilder()
+                .WithSecret<LinkMetadata, LinkData>()
+                .WithSecret<LinkCommand.LinkMetadata, LinkCommand.LinkProtected>()
+                .Build()
+        );
+        using ServiceProvider services = collection.BuildServiceProvider();
         RunState state = new();
         CommandSet<RunState> set = CommandSet<RunState>.CreateFromAssembly(GetType().Assembly);
         while (true)
@@ -30,7 +44,9 @@ internal class Processor
                     return 0;
             }
             var args = ArgumentSource.GetArguments(new StringReader(line)).ToImmutableList();
-            set.RootCommand.Execute(set, state, null, args);
+            using IServiceScope scope = services.CreateScope();
+            ICommandSet<RunState> scopedSet = set.GetScoped(scope);
+            await scopedSet.RootCommand.ExecuteAsync(scopedSet, state, null, args);
         }
     }
 

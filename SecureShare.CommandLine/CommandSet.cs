@@ -2,10 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine;
 
-public class CommandSet<TState>
+public interface ICommandSet<TState>
+{
+    ICommand<TState> RootCommand { get; }
+    ICommand<TState, TParent> GetChildCommand<TParent>(string name)
+        where TParent : ICommand<TState>;
+
+    ICommand<TState> GetChildCommand(Type parent, string name);
+}
+
+public class CommandSet<TState> 
 {
     private Dictionary<(Type parent, string name), Type> _commands;
 
@@ -14,19 +24,32 @@ public class CommandSet<TState>
         _commands = commands;
     }
 
-    public ICommand<TState> RootCommand => (ICommand<TState>)Activator.CreateInstance(_commands[(null, null)]);
-
-    public ICommand<TState, TParent> GetChildCommand<TParent>(string name)
-        where TParent : ICommand<TState>
+    private class ScopedSet : ICommandSet<TState>
     {
-        return (ICommand<TState, TParent>)GetChildCommand(typeof(TParent), name);
+        private readonly CommandSet<TState> _unscoped;
+        private readonly IServiceScope _scope;
+
+        public ScopedSet(CommandSet<TState> unscoped, IServiceScope scope)
+        {
+            _unscoped = unscoped;
+            _scope = scope;
+        }
+
+        public ICommand<TState> RootCommand => _unscoped.GetChildCommand(_scope.ServiceProvider, null, null);
+
+        public ICommand<TState, TParent> GetChildCommand<TParent>(string name)
+            where TParent : ICommand<TState> => (ICommand<TState, TParent>)_unscoped.GetChildCommand(_scope.ServiceProvider, typeof(TParent), name);
+
+        public ICommand<TState> GetChildCommand(Type parent, string name) => _unscoped.GetChildCommand(_scope.ServiceProvider, parent, name);
     }
-    
-    public ICommand<TState> GetChildCommand(Type parent, string name)
+
+    public ICommandSet<TState> GetScoped(IServiceScope scope) => new ScopedSet(this, scope);
+
+    private ICommand<TState> GetChildCommand(IServiceProvider services, Type parent, string name)
     {
         if (_commands.TryGetValue((parent, name.ToLowerInvariant()), out Type childCommand))
         {
-            return (ICommand<TState>)Activator.CreateInstance(childCommand);
+            return (ICommand<TState>)ActivatorUtilities.CreateInstance(services, childCommand);
         }
 
         return null;

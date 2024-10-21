@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine;
 
 public class RootCommand<TState> : BaseCommand<TState>
 {

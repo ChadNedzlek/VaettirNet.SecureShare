@@ -3,16 +3,13 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
 public class LiveVaultData
 {
+    private readonly uint _baseVersion;
     private readonly List<VaultClientEntry> _clients;
     private readonly List<BlockedVaultClientEntry> _blockedClients;
     private readonly List<Signed<ClientModificationRecord>> _modificationRecords; 
@@ -22,8 +19,11 @@ public class LiveVaultData
         IEnumerable<VaultClientEntry>? clients = null,
         IEnumerable<BlockedVaultClientEntry>? blockedClients = null,
         IEnumerable<UntypedVaultSnapshot>? vaults = null,
-        IEnumerable<Signed<ClientModificationRecord>>? modificationRecords = null)
+        IEnumerable<Signed<ClientModificationRecord>>? modificationRecords = null,
+        uint baseVersion = 0
+    )
     {
+        _baseVersion = baseVersion;
         _clients = clients?.ToList() ?? [];
         _blockedClients = blockedClients?.ToList() ?? [];
         _vaults = vaults?.ToList() ?? [];
@@ -34,6 +34,21 @@ public class LiveVaultData
 
     public void UpdateClient(VaultClientEntry client, Signer signer)
     {
+        int existingIndex = _clients.FindIndex(i => i.ClientId == client.ClientId);
+        if (existingIndex == -1)
+        {
+            AddClient(client, signer);
+            return;
+        }
+
+        VaultClientEntry existing = _clients[existingIndex];
+        _clients[existingIndex] = client;
+        _modificationRecords.Add(
+            signer.Algorithm.Sign(
+                new ClientModificationRecord(ClientAction.KeyChange, client.ClientId, existing.SigningKey, existing.EncryptionKey, signer.Keys.ClientId),
+                signer.Keys
+            )
+        );
     }
 
     public void AddClient(VaultClientEntry client, RefSigner signer)
@@ -42,8 +57,7 @@ public class LiveVaultData
         _modificationRecords.Add(
             signer.Algorithm.Sign(
                 new ClientModificationRecord(ClientAction.Added, client.ClientId, default, default, signer.Keys.ClientId),
-                signer.Keys,
-                signer.Password
+                signer.Keys
             )
         );
     }
@@ -55,8 +69,7 @@ public class LiveVaultData
         _modificationRecords.Add(
             signer.Algorithm.Sign(
                 new ClientModificationRecord(ClientAction.Blocked, blocked.ClientId, default, default, signer.Keys.ClientId),
-                signer.Keys,
-                signer.Password.Span
+                signer.Keys
             )
         );
     }
@@ -110,7 +123,8 @@ public class LiveVaultData
             _clients,
             _blockedClients,
             _modificationRecords,
-            _vaults
+            _vaults,
+            _baseVersion + 1
         );
     }
 
@@ -120,7 +134,8 @@ public class LiveVaultData
             snapshot.Clients,
             snapshot.BlockedClients,
             snapshot.Vaults,
-            snapshot.ClientModifications
+            snapshot.ClientModifications,
+            snapshot.Version
         );
     }
 }

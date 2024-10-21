@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="AWSSDK.S3" Version="3.7.405" />
         <PackageReference Include="JetBrains.Annotations" Version="2024.2.0" PrivateAssets="all"/>
         <PackageReference Include="protobuf-net" Version="3.2.30" />
         <PackageReference Include="VaettirNet.CodeGeneration.DelegateImplementation" Version="0.0.5" />

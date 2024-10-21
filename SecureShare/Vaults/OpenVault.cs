@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
@@ -46,7 +45,7 @@ public class OpenVault<TAttributes, TProtected>
     {
         if (_secrets.Remove(id, out var value))
         {
-            _removedSecrets.Add(id, algorithm.Sign(new RemovedSecretRecord(id, value.Version, value.HashBytes), keys, default));
+            _removedSecrets.Add(id, algorithm.Sign(new RemovedSecretRecord(id, value.Version, value.HashBytes), keys));
         }
     }
 

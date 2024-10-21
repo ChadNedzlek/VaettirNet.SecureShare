@@ -10,11 +10,11 @@ namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultSnapshotSerializer
 {
-    private readonly ProtobufObjectSerializer<VaultDataSnapshot> _serializer;
+    private readonly ProtobufObjectSerializer<Signed<VaultDataSnapshot>> _serializer;
 
     public VaultSnapshotSerializer(params IEnumerable<Type> sealedSecretTypes)
     {
-        _serializer = ProtobufObjectSerializer<VaultDataSnapshot>.Create(
+        _serializer = ProtobufObjectSerializer<Signed<VaultDataSnapshot>>.Create(
             model =>
             {
                 AddSignedType<ClientModificationRecord>(model);
@@ -34,12 +34,12 @@ public class VaultSnapshotSerializer
         );
     }
 
-    public void Serialize(Stream destination, VaultDataSnapshot snapshot)
+    public void Serialize(Stream destination, Signed<VaultDataSnapshot> snapshot)
     {
         _serializer.Serialize(destination, snapshot);
     }
 
-    public VaultDataSnapshot Deserialize(Stream source)
+    public Signed<VaultDataSnapshot> Deserialize(Stream source)
     {
         return _serializer.Deserialize(source);
     }

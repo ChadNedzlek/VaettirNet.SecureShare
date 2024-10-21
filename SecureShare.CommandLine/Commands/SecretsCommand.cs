@@ -1,75 +1,20 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Mono.Options;
-using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Vaults;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine.Commands;
 
-[Command("list|l")]
-internal class ListCommand : RootCommand<RunState>
+[Command("secrets|s")]
+internal class SecretsCommand : RootCommand<RunState>
 {
-    protected override int Execute(RunState state, IReadOnlyList<string> args)
+    [Command("list|ls|l")]
+    internal class ListCommand : ChildCommand<RunState, SecretsCommand>
     {
-        Console.WriteLine("Vaults:");
-        if (state.VaultSnapshot.Vaults.IsEmpty)
-        {
-            Console.WriteLine("  <none>");
-        }
-        else
-        {
-            foreach (UntypedVaultSnapshot vault in state.VaultSnapshot.Vaults)
-            {
-                Console.WriteLine($"  {vault.Id.Name}");
-            }
-        }
-        return 0;
-    }
+        private bool _decrypt;
 
-    [Command("vaults|v")]
-    internal class VaultsCommand : ChildCommand<RunState, ListCommand>
-    {
-        protected override int Execute(RunState state, ListCommand parent, ImmutableList<string> args)
-        {
-            return parent.Execute(state, args);
-        }
-    }
-    
-    [Command("clients|c")]
-    internal class ClientsCommands : ChildCommand<RunState, ListCommand>
-    {
-        protected override int Execute(RunState state, ListCommand parent, ImmutableList<string> args)
-        {
-            Console.WriteLine("Clients:");
-            foreach (VaultClientEntry client in state.VaultSnapshot.Clients)
-            {
-                Console.WriteLine($"  {client.ClientId} {client.Description}");
-            }
-
-            Console.WriteLine("Blocked Clients:");
-            if (state.VaultSnapshot.BlockedClients.IsEmpty)
-            {
-                Console.WriteLine("  <none>");
-            }
-            else
-            {
-                foreach (VaultClientEntry client in state.VaultSnapshot.Clients)
-                {
-                    Console.WriteLine($"  {client.ClientId} {client.Description}");
-                }
-            }
-
-            return 0;
-        }
-    }
-
-    [Command("secrets|s")]
-    internal class SecretsCommand : ChildCommand<RunState, ListCommand>
-    {
-        private bool _decrypt = false;
-        protected override int Execute(RunState state, ListCommand parent, ImmutableList<string> args)
+        protected override int Execute(RunState state, SecretsCommand parent, ImmutableList<string> args)
         {
             Console.WriteLine("Secrets: ");
             SecretTransformer transformer = null;
@@ -115,6 +60,7 @@ internal class ListCommand : RootCommand<RunState>
                 RemovedSecretRecord payload = secret.DangerousGetPayload();
                 Console.WriteLine($"  id:{payload.Id} ver:{payload.Version} by:{secret.Signer}");
             }
+
             if (!any)
             {
                 Console.WriteLine("  <none>");
@@ -126,6 +72,45 @@ internal class ListCommand : RootCommand<RunState>
         public override OptionSet GetOptions(RunState state)
         {
             return new OptionSet { { "decrypt|d", "Include decrypted values", v => _decrypt = v is not null }, };
+        }
+    }
+
+    [Command("add|a")]
+    internal class AddSecretCommand : ChildCommand<RunState, SecretsCommand>
+    {
+        private string _name;
+
+        protected override int Execute(RunState state, SecretsCommand parent, ImmutableList<string> args)
+        {
+            string url;
+            if (_name == null)
+            {
+                if (args.Count >= 2)
+                {
+                    _name = args[0];
+                    url = args[1];
+                }
+                else
+                {
+                    url = args[0];
+                    _name = new Uri(url).Host;
+                }
+            }
+            else
+            {
+                url = args[0];
+            }
+
+            var secret = UnsealedSecretValue.Create(new LinkMetadata(), new LinkData(_name, url));
+            SecretTransformer transformer = state.VaultManager.GetTransformer(state.Keys);
+            state.Store.UpdateSecret(transformer.Seal(secret));
+            state.VaultManager.Vault.UpdateVault(state.Store.ToSnapshot());
+            return 0;
+        }
+
+        public override OptionSet GetOptions(RunState state)
+        {
+            return new OptionSet { { "name|n=", "name of bookmark", v => _name = v } };
         }
     }
 }

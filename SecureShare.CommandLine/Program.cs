@@ -1,8 +1,10 @@
-﻿namespace sec;
+﻿using System.Threading.Tasks;
+
+namespace VaettirNet.SecureShare.CommandLine;
 
 internal static class Program
 {
-    static int Main(string[] args)
+    private static Task<int> Main(string[] args)
     {
         return new Processor(args).Run();
     }

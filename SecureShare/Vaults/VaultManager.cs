@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Immutable;
 using System.Linq;
 using VaettirNet.SecureShare.Secrets;
 
@@ -28,7 +27,7 @@ public class VaultManager
             stackalloc byte[100],
             RefTuple.Create(signer, (ReadOnlySpan<byte>)sharedKey),
             (Span<byte> span, RefTuple<RefSigner, ReadOnlySpan<byte>> state, out int cb) =>
-                _vaultCryptographyAlgorithm.TryEncryptFor(state.Item2, state.Item1.Keys, state.Item1.Password, publicInfo, span, out cb),
+                _vaultCryptographyAlgorithm.TryEncryptFor(state.Item2, state.Item1.Keys, publicInfo, span, out cb),
             VaultArrayPool.Pool
         );
 
@@ -42,22 +41,20 @@ public class VaultManager
         );
     }
 
-    public void AddAuthenticatedClient(Signer signer, VaultRequest request)
+    public void AddAuthenticatedClient(RefSigner signer, VaultRequest request)
     {
         Vault.AddClient(ApproveRequest(signer, request), signer);
     }
 
     private Signed<ClientModificationRecord> SignRecord(
         PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password,
         ClientModificationRecord clientModificationRecord) =>
-        _vaultCryptographyAlgorithm.Sign(clientModificationRecord, privateInfo, password);
+        _vaultCryptographyAlgorithm.Sign(clientModificationRecord, privateInfo);
 
     public static VaultManager Import(
         VaultCryptographyAlgorithm messageAlg,
         VaultDataSnapshot vault,
-        PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password = default
+        PrivateClientInfo privateInfo
     )
     {
         LiveVaultData live = LiveVaultData.FromSnapshot(vault);
@@ -69,37 +66,26 @@ public class VaultManager
 
         using var sharedKey = SpanHelpers.GrowingSpan(
             stackalloc byte[300],
-            password,
-            (Span<byte> s, ReadOnlySpan<char> pw, out int cb) => messageAlg.TryDecryptFrom(
+            (Span<byte> s, out int cb) => messageAlg.TryDecryptFrom(
                 clientEntry.EncryptedSharedKey.Span,
                 privateInfo,
-                pw,
                 authorizer.PublicInfo,
                 s,
-                out cb),
-            VaultArrayPool.Pool);
+                out cb
+            ),
+            VaultArrayPool.Pool
+        );
 
         return new VaultManager(SecretTransformer.CreateFromSharedKey(sharedKey.Span), messageAlg, live);
     }
 
     public static VaultManager Initialize(
         string clientDescription,
-        VaultCryptographyAlgorithm vaultCryptographyAlgorithm,
-        out PrivateClientInfo privateInfo
-    )
-    {
-        return Initialize(clientDescription, default, vaultCryptographyAlgorithm, out privateInfo);
-    }
-
-    public static VaultManager Initialize(
-        string clientDescription,
-        ReadOnlySpan<char> password,
         VaultCryptographyAlgorithm encryptionAlgorithm,
         out PrivateClientInfo privateInfo
     )
     {
-        var requestManager = new VaultRequestManager(encryptionAlgorithm);
-        var request = requestManager.CreateRequest(clientDescription, out privateInfo);
+        var request = VaultRequest.Create(encryptionAlgorithm, clientDescription, out privateInfo);
 
         SecretTransformer transformer = SecretTransformer.CreateRandom();
         var manager = new VaultManager(
@@ -107,7 +93,7 @@ public class VaultManager
             encryptionAlgorithm,
             new LiveVaultData()
         );
-        RefSigner signer = new(encryptionAlgorithm, privateInfo, password);
+        RefSigner signer = new(encryptionAlgorithm, privateInfo);
         VaultClientEntry clientEntry = manager.ApproveRequest(signer, request);
         manager.Vault.AddClient(clientEntry, signer);
         return manager;
@@ -125,4 +111,31 @@ public class VaultManager
         }
         return SecretTransformer.CreateFromSharedKey(decryptedKey);
     }
+}
+
+public class VaultConflictResolver
+{
+    public VaultConflictResult Resolve(VaultDataSnapshot original, VaultDataSnapshot? remote, VaultDataSnapshot local)
+    {
+        if (remote is null || original.Version == remote.Version)
+        {
+            return ResolveTwoNoConflict(original, local);
+        }
+
+        return ResolveThreeWayConflict(original, remote!, local);
+    }
+
+    private VaultConflictResult ResolveThreeWayConflict(VaultDataSnapshot original, VaultDataSnapshot remote, VaultDataSnapshot local)
+    {
+        throw new NotImplementedException();
+    }
+
+    private VaultConflictResult ResolveTwoNoConflict(VaultDataSnapshot original, VaultDataSnapshot local)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class VaultConflictResult
+{
 }

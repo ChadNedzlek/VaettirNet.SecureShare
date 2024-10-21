@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using FluentAssertions;
 using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
@@ -71,7 +70,7 @@ public class VaultTest
             .WithSecret<SecretAttributes, SecretProtectedValue>()
             .Build();
         using MemoryStream stream = new();
-        serializer.Serialize(stream, snapshot);
+        serializer.Serialize(stream, new Signed<VaultDataSnapshot>(snapshot, firstClient, new byte[] { 30, 31, 32 }));
         stream.Flush();
         stream.Position = 0;
         var roundTripped = serializer.Deserialize(stream);

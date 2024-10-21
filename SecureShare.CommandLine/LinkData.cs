@@ -1,7 +1,7 @@
 using ProtoBuf;
 using VaettirNet.SecureShare.Serialization;
 
-namespace sec;
+namespace VaettirNet.SecureShare.CommandLine;
 
 [ProtoContract(SkipConstructor = true)]
 public class LinkData : BinarySerializable<LinkData>
