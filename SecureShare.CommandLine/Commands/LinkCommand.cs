@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -10,6 +12,7 @@ using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Sync;
 using VaettirNet.SecureShare.Vaults;
+using VaettirNet.SecureShare.Vaults.Conflict;
 
 namespace VaettirNet.SecureShare.CommandLine.Commands;
 
@@ -31,11 +34,13 @@ internal class LinkCommand : RootCommand<RunState>
 
         private readonly CommandPrompt _prompt;
         private readonly VaultSnapshotSerializer _vaultSerializer;
+        private readonly VaultConflictResolver _conflictResolver;
 
-        public InitializeCommand(CommandPrompt prompt, VaultSnapshotSerializer vaultSerializer)
+        public InitializeCommand(CommandPrompt prompt, VaultSnapshotSerializer vaultSerializer, VaultConflictResolver conflictResolver)
         {
             _prompt = prompt;
             _vaultSerializer = vaultSerializer;
+            _conflictResolver = conflictResolver;
         }
 
         protected override async Task<int> ExecuteAsync(RunState state, LinkCommand parent, ImmutableList<string> args)
@@ -48,7 +53,7 @@ internal class LinkCommand : RootCommand<RunState>
             {
                 if (_name == null || _bucket == null)
                 {
-                    var m = Regex.Match(_url, @"^$https://(.*?)\.([a-z0-9]*)\.digitaloceanspaces.com/(.*)$");
+                    Match m = Regex.Match(_url, @"^$https://(.*?)\.([a-z0-9]*)\.digitaloceanspaces.com/(.*)$");
                     if (m.Success)
                     {
                         _bucket = m.Groups[1].Value;
@@ -72,10 +77,186 @@ internal class LinkCommand : RootCommand<RunState>
                 }
             }
 
-            state.Sync = new DigitalOceanSpacesSync(_bucket, _region, _name, _accessKey, _secretKey, _vaultSerializer);
-            await state.Sync.UploadVaultAsync(state.Algorithm.Sign(state.VaultManager.Vault.GetSnapshot(), state.Keys), CancellationToken.None);
+            state.Sync = new DigitalOceanSpacesSync(new DigitalOceanConfig(_bucket, _region, _name, _accessKey, _secretKey), _vaultSerializer);
+            ValidatedVaultDataSnapshot vaultDataSnapshot = state.VaultManager.Vault.GetSnapshot(new RefSigner(state.Algorithm, state.Keys));
+            return await PutVault(state, vaultDataSnapshot);
+        }
 
-            return 0;
+        private async Task<int> PutVault(RunState state, ValidatedVaultDataSnapshot vaultDataSnapshot)
+        {
+            while (true)
+            {
+                PutVaultResult result = await state.Sync.PutVaultAsync(vaultDataSnapshot, cancellationToken: CancellationToken.None);
+                if (result.Succeeded)
+                {
+                    _prompt.WriteLine("Vault uploaded");
+                    state.LoadedSnapshot = vaultDataSnapshot;
+                    return 0;
+                }
+
+                if (result.InvalidExistingVault is { } invalidVaultException)
+                {
+                    _prompt.WriteWarning($"Current vault is invalid: {invalidVaultException.Message}");
+                    if (!_prompt.Confirm("Discard remote (invalid) changes and replace with local version? "))
+                    {
+                        _prompt.WriteLine("Aborting");
+                        return 2;
+                    }
+
+                    PutVaultResult putVaultResult = await state.Sync.PutVaultAsync(vaultDataSnapshot, cancellationToken: CancellationToken.None);
+                    if (!putVaultResult.Succeeded)
+                    {
+                        _prompt.WriteError("Failed to upload vault");
+                        return 1;
+                    }
+
+                    _prompt.WriteLine("Vault overwritten");
+                    return 0;
+                }
+
+                if (result.ConflictVault is { } signedConflictingSnapshot)
+                {
+                    var validatedConflict = signedConflictingSnapshot.Validate(state.Algorithm);
+                    _prompt.WriteWarning("Conflict detected during vault upload...");
+                    if (!validatedConflict.TryGetSignerPublicInfo(out PublicClientInfo signer))
+                    {
+                        _prompt.WriteError("No trusted signer found");
+                        if (!_prompt.Confirm("Discard remote (unsigned) changes and replace with local version? "))
+                        {
+                            _prompt.WriteLine("Aborting, local vault is unsynced");
+                            return 2;
+                        }
+
+                        if ((await state.Sync.PutVaultAsync(validatedConflict, force: true, cancellationToken: CancellationToken.None)).Succeeded)
+                        {
+                            _prompt.WriteError("Failed to upload vault");
+                            return 1;
+                        }
+
+                        state.LoadedSnapshot = vaultDataSnapshot;
+                    }
+
+                    if (!ValidatedVaultDataSnapshot.TryValidate(
+                            signedConflictingSnapshot,
+                            signer.SigningKey.Span,
+                            state.Algorithm,
+                            out var conflictingSnapshot
+                        ))
+                    {
+                        _prompt.WriteError("Invalid signature found");
+                        if (!_prompt.Confirm("Discard remote (invalid) changes and replace with local version?"))
+                        {
+                            _prompt.WriteLine("Aborting, local vault is unsynced");
+                            return 2;
+                        }
+
+                        if ((await state.Sync.PutVaultAsync(validatedConflict, force: true, cancellationToken: CancellationToken.None)).Succeeded)
+                        {
+                            _prompt.WriteError("Failed to upload vault");
+                            return 1;
+                        }
+                    }
+
+                    VaultConflictResult conflictResult = _conflictResolver.Resolve(state.LoadedSnapshot, conflictingSnapshot, vaultDataSnapshot);
+                    if (_conflictResolver.TryAutoResolveConflicts(conflictResult, state.Signer, out var newSnapshot))
+                    {
+                        if (_prompt.Confirm("Auto-resolve possible. Auto-resolve?"))
+                        {
+                            var conflictUploadResult = await state.Sync.PutVaultAsync(newSnapshot, etag: result.CacheKey);
+                            if (conflictUploadResult.Succeeded)
+                            {
+                                return 0;
+                            }
+                            _prompt.WriteWarning("Failed to resolve conflict... retrying...");
+                            continue;
+                        }
+                    }
+
+                    VaultConflictResolution.Builder resolution = VaultConflictResolution.Start(state.LoadedSnapshot, conflictResult.Items);
+                    foreach (VaultConflictItem conflict in conflictResult.Items)
+                    {
+                        switch (conflict)
+                        {
+                            case ClientConflictItem clientConflictItem:
+                                _prompt.WriteLine($"Conflict in client '{clientConflictItem.Description}' ({clientConflictItem.Id})");
+                                DisplayClient("Original", clientConflictItem.BaseEntry);
+                                DisplayClient("Remote", clientConflictItem.Remote);
+                                DisplayClient("Local", clientConflictItem.Local);
+
+                                switch (Resolve())
+                                {
+                                    case 'l':
+                                        resolution.Resolve(conflict, VaultResolutionItem.AcceptLocal);
+                                        break;
+                                    case 'r':
+                                        resolution.Resolve(conflict, VaultResolutionItem.AcceptRemote);
+                                        break;
+                                    case 'a':
+                                        _prompt.WriteWarning("Aborting resolve.");
+                                        return 1;
+                                }
+
+                                break;
+
+                                void DisplayClient(string name, OneOf<VaultClientEntry, BlockedVaultClientEntry> entry)
+                                {
+                                    entry.Map(
+                                        client =>
+                                        {
+                                            if (client is null)
+                                            {
+                                                _prompt.WriteLine("  {name}: <none>");
+                                            }
+                                            else
+                                            {
+                                                _prompt.WriteLine(
+                                                    $"""
+                                                      {name}: '{client.Description}'
+                                                        Id: {client.ClientId}
+                                                        Keys:{Convert.ToBase64String(client.SigningKey.Span)}
+                                                        Authorized: {(client.Authorizer == state.Keys.ClientId ? "this client" : client.Authorizer)}
+                                                    """
+                                                );
+                                            }
+                                        },
+                                        removed => _prompt.WriteWarning(
+                                            $"""
+                                              {name} BLOCKED: '{removed.Description}'
+                                                Id: {removed.ClientId}
+                                                Keys:{Convert.ToBase64String(removed.PublicKey.Span)}
+                                            """
+                                        )
+                                    );
+                                }
+                            case SecretConflictItem secretConflictItem:
+                                break;
+                            case VaultListConflictItem listItem: break;
+                        }
+                    }
+
+                    char Resolve()
+                    {
+                        while (true)
+                        {
+                            switch (_prompt.Prompt("Accept [l]ocal or [r]emote (or [a]bort)? ").ToLowerInvariant())
+                            {
+                                case "local":
+                                case "l":
+                                    return 'l';
+                                case "remote":
+                                case "r":
+                                    return 'r';
+                                case "abort":
+                                case "a":
+                                    return 'a';
+                                default:
+                                    _prompt.WriteError("Invalid response");
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private int StoreInVault(RunState state)
@@ -86,12 +267,13 @@ internal class LinkCommand : RootCommand<RunState>
                 return 1;
             }
 
-            var store = state.VaultManager.Vault.GetStoreOrDefault<LinkMetadata, LinkProtected>();
-            var existingValues = store.GetSecrets().ToList();
+            OpenVaultReader<LinkMetadata, LinkProtected> store = state.VaultManager.Vault.GetStoreOrDefault<LinkMetadata, LinkProtected>();
             SecretTransformer transformer = state.VaultManager.GetTransformer(state.Keys);
+            var writer = store.GetWriter(transformer);
+            List<SealedSecret<LinkMetadata, LinkProtected>> existingValues = store.GetSecrets().ToList();
             if (existingValues.Count == 0)
             {
-                store.UpdateSecret(transformer.Seal(UnsealedSecretValue.Create(new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
+                writer.Update(transformer.Seal(UnsealedSecret.Create(new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
             }
             else if (existingValues.Count >= 1)
             {
@@ -101,7 +283,7 @@ internal class LinkCommand : RootCommand<RunState>
                     existingValues[1].Attributes.Name == _name)
                 {
 
-                    var unsealed = transformer.Unseal(existingValues[1]);
+                    UnsealedSecret<LinkMetadata, LinkProtected> unsealed = transformer.Unseal(existingValues[1]);
                     if (unsealed.Protected.SecretKey == _secretKey)
                     {
                         _prompt.WriteLine("Access key already stored, no action taken");
@@ -109,7 +291,7 @@ internal class LinkCommand : RootCommand<RunState>
                     }
 
                 }
-                store.UpdateSecret(transformer.Seal(UnsealedSecretValue.Create(existingValues[1].Id, new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
+                writer.Update(transformer.Seal(UnsealedSecret.Create(existingValues[1].Id, new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
             }
             
             state.VaultManager.Vault.UpdateVault(store.ToSnapshot());

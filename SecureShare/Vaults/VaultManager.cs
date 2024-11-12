@@ -21,7 +21,7 @@ public class VaultManager
     public VaultClientEntry ApproveRequest(RefSigner signer, VaultRequest request)
     {
         Span<byte> sharedKey = stackalloc byte[_transformer.KeySize];
-        var publicInfo = request.PublicInfo;
+        PublicClientInfo publicInfo = request.PublicInfo;
         _transformer.ExportKey(sharedKey, out _);
         using RentedSpan<byte> encryptedClientKey = SpanHelpers.GrowingSpan(
             stackalloc byte[100],
@@ -46,14 +46,9 @@ public class VaultManager
         Vault.AddClient(ApproveRequest(signer, request), signer);
     }
 
-    private Signed<ClientModificationRecord> SignRecord(
-        PrivateClientInfo privateInfo,
-        ClientModificationRecord clientModificationRecord) =>
-        _vaultCryptographyAlgorithm.Sign(clientModificationRecord, privateInfo);
-
     public static VaultManager Import(
         VaultCryptographyAlgorithm messageAlg,
-        VaultDataSnapshot vault,
+        ValidatedVaultDataSnapshot vault,
         PrivateClientInfo privateInfo
     )
     {
@@ -64,7 +59,7 @@ public class VaultManager
         if (!live.TryGetClient(clientEntry.Authorizer, out VaultClientEntry? authorizer))
             throw new ArgumentException("Authorizer is not present");
 
-        using var sharedKey = SpanHelpers.GrowingSpan(
+        using RentedSpan<byte> sharedKey = SpanHelpers.GrowingSpan(
             stackalloc byte[300],
             (Span<byte> s, out int cb) => messageAlg.TryDecryptFrom(
                 clientEntry.EncryptedSharedKey.Span,
@@ -85,10 +80,10 @@ public class VaultManager
         out PrivateClientInfo privateInfo
     )
     {
-        var request = VaultRequest.Create(encryptionAlgorithm, clientDescription, out privateInfo);
+        VaultRequest request = VaultRequest.Create(encryptionAlgorithm, clientDescription, out privateInfo);
 
         SecretTransformer transformer = SecretTransformer.CreateRandom();
-        var manager = new VaultManager(
+        VaultManager manager = new VaultManager(
             transformer,
             encryptionAlgorithm,
             new LiveVaultData()
@@ -109,33 +104,6 @@ public class VaultManager
         {
             throw new InvalidOperationException();
         }
-        return SecretTransformer.CreateFromSharedKey(decryptedKey);
+        return SecretTransformer.CreateFromSharedKey(decryptedKey[..written]);
     }
-}
-
-public class VaultConflictResolver
-{
-    public VaultConflictResult Resolve(VaultDataSnapshot original, VaultDataSnapshot? remote, VaultDataSnapshot local)
-    {
-        if (remote is null || original.Version == remote.Version)
-        {
-            return ResolveTwoNoConflict(original, local);
-        }
-
-        return ResolveThreeWayConflict(original, remote!, local);
-    }
-
-    private VaultConflictResult ResolveThreeWayConflict(VaultDataSnapshot original, VaultDataSnapshot remote, VaultDataSnapshot local)
-    {
-        throw new NotImplementedException();
-    }
-
-    private VaultConflictResult ResolveTwoNoConflict(VaultDataSnapshot original, VaultDataSnapshot local)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-public class VaultConflictResult
-{
 }

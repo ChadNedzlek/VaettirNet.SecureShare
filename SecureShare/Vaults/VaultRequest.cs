@@ -40,7 +40,7 @@ public class VaultRequest : BinarySerializable<VaultRequest>
     public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, ReadOnlyMemory<byte> extraData, out PrivateClientInfo privateInfo)
     {
         Guid clientId = Guid.NewGuid();
-        algorithm.Create(clientId, out privateInfo, out var publicInfo);
+        algorithm.Create(clientId, out privateInfo, out PublicClientInfo publicInfo);
         return Create(description, publicInfo, extraData);
     }
 

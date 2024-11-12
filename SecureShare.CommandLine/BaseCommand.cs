@@ -25,7 +25,7 @@ public abstract class BaseCommand<TState> : ICommand<TState>
         List<string> rem = optionSet.Parse(args);
         if (rem.Count > 0)
         {
-            var child = commandSet.GetChildCommand(GetType(), rem[0]);
+            ICommand<TState> child = commandSet.GetChildCommand(GetType(), rem[0]);
             if (child == null && parent == null)
             {
                 child = commandSet.GetChildCommand(null, rem[0]);

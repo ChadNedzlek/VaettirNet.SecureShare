@@ -1,7 +1,5 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
-using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
 
@@ -98,7 +96,7 @@ public class VaultCryptographyAlgorithm
         );
     }
 
-    public Signed<T> Sign<T>(T toSign, PrivateClientInfo privateInfo) where T : ISignable
+    public Validated<T> Sign<T>(T toSign, PrivateClientInfo privateInfo) where T : ISignable
     {
         using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
@@ -106,22 +104,22 @@ public class VaultCryptographyAlgorithm
             VaultArrayPool.Pool);
 
         byte[] signature = GetSignatureForByteArray(privateInfo, data.Span);
-        return Signed.Create(toSign, privateInfo.ClientId, signature);
+        return Validated.AssertValid(Signed.Create(toSign, privateInfo.ClientId, signature));
     }
 
     public byte[] GetSignatureForByteArray(PrivateClientInfo privateInfo, Span<byte> data)
     {
-        var dsa = ECDsa.Create();
+        ECDsa dsa = ECDsa.Create();
         dsa.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
         byte[] signature = dsa.SignData(data, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
         return signature;
     }
 
-    public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : ISignable
+    public bool TryValidate<T>(Signed<T> signed, PublicClientInfo publicInfo, out Validated<T> validated) where T : ISignable
     {
-        T unvalidated = toSign.DangerousGetPayload();
+        T unvalidated = signed.DangerousGetPayload();
         
-        var dsa = ECDsa.Create();
+        ECDsa dsa = ECDsa.Create();
         dsa.ImportSubjectPublicKeyInfo(publicInfo.SigningKey.Span, out _);
 
         using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
@@ -129,14 +127,46 @@ public class VaultCryptographyAlgorithm
             (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
             VaultArrayPool.Pool);
 
-        if (!dsa.VerifyData(data.Span, toSign.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        {
+            validated = default;
+            return false;
+        }
+
+        validated = Validated<T>.AssertValid(signed);
+        return true;
+    }
+
+    public bool TryValidate<T>(Signed<T> signed, ReadOnlySpan<byte> publicKey, out Validated<T> payload) where T : ISignable
+    {
+        T unvalidated = signed.DangerousGetPayload();
+        
+        ECDsa dsa = ECDsa.Create();
+        dsa.ImportSubjectPublicKeyInfo(publicKey, out _);
+
+        using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
+            VaultArrayPool.Pool);
+
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
         {
             payload = default;
             return false;
         }
 
-        payload = unvalidated;
+        payload = Validated.AssertValid(signed);
         return true;
+    }
+
+    public T GetPayload<T>(Signed<T> signed, PublicClientInfo publicInfo) where T : ISignable
+    {
+        if (!TryValidate(signed, publicInfo, out var payload))
+        {
+            throw new ArgumentException("Signed is not validly signed by signer");
+        }
+
+        return payload;
     }
 
     public PublicClientInfo GetPublic(PrivateClientInfo privateInfo)

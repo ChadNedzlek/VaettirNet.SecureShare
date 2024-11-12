@@ -23,7 +23,7 @@ internal class VaultCommand : BaseCommand<RunState>
 
             VaultManager manager = VaultManager.Initialize(args.Count > 0 ? args[0] : "vault", state.Algorithm, out PrivateClientInfo keys);
             state.Keys = keys;
-            state.LoadedSnapshot = manager.Vault.GetSnapshot();
+            state.LoadedSnapshot = manager.Vault.GetSnapshot(new RefSigner(state.Algorithm, keys));
             state.VaultManager = manager;
             return 0;
         }
@@ -42,13 +42,13 @@ internal class VaultCommand : BaseCommand<RunState>
         protected override int Execute(RunState state, VaultCommand parent, ImmutableList<string> args)
         {
             _prompt.WriteLine("Vaults:");
-            if (state.VaultSnapshot.Vaults.IsEmpty)
+            if (state.LoadedSnapshot.Vaults?.IsEmpty ?? true)
             {
                 _prompt.WriteLine("  <none>", ConsoleColor.DarkGray);
             }
             else
             {
-                foreach (UntypedVaultSnapshot vault in state.VaultSnapshot.Vaults)
+                foreach (UntypedVaultSnapshot vault in state.LoadedSnapshot.Vaults ?? [])
                 {
                     _prompt.WriteLine($"  {vault.Id.Name}");
                 }
@@ -76,18 +76,13 @@ internal class VaultCommand : BaseCommand<RunState>
             }
 
             using Stream stream = File.OpenRead(args[0]);
-            Signed<VaultDataSnapshot> signedSnapshot = VaultSnapshotSerializer.CreateBuilder()
+            Signed<UnvalidatedVaultDataSnapshot> signedSnapshot = VaultSnapshotSerializer.CreateBuilder()
                 .WithSecret<LinkMetadata, LinkData>()
                 .Build()
                 .Deserialize(stream);
+            
 
-            if (!signedSnapshot.TryGetSignerPublicInfo(out var signer))
-            {
-                _prompt.WriteError($"Vault signer ({signedSnapshot.Signer}) is not a trusted signer of this vault.");
-                return 2;
-            }
-
-            if (!new VaultCryptographyAlgorithm().TryGetPayload(signedSnapshot, signer, out var snapshot))
+            if (!signedSnapshot.TryValidate(state.Algorithm, out ValidatedVaultDataSnapshot snapshot))
             {
                 _prompt.WriteError("Vault signature does not match");
                 return 2;
@@ -118,7 +113,7 @@ internal class VaultCommand : BaseCommand<RunState>
             VaultSnapshotSerializer.CreateBuilder()
                 .WithSecret<LinkMetadata, LinkData>()
                 .Build()
-                .Serialize(stream, state.Algorithm.Sign(state.VaultManager.Vault.GetSnapshot(), state.Keys));
+                .Serialize(stream, state.VaultManager.Vault.GetSnapshot(new RefSigner(state.Algorithm, state.Keys)));
 
             return 0;
         }

@@ -35,7 +35,7 @@ internal class Processor
         while (true)
         {
             WritePrompt(state);
-            string line = Console.ReadLine();
+            string line = Console.ReadLine()!;
             switch (line?.ToLowerInvariant())
             {
                 case "q":
@@ -43,7 +43,7 @@ internal class Processor
                 case "exit":
                     return 0;
             }
-            var args = ArgumentSource.GetArguments(new StringReader(line)).ToImmutableList();
+            ImmutableList<string> args = ArgumentSource.GetArguments(new StringReader(line)).ToImmutableList();
             using IServiceScope scope = services.CreateScope();
             ICommandSet<RunState> scopedSet = set.GetScoped(scope);
             await scopedSet.RootCommand.ExecuteAsync(scopedSet, state, null, args);

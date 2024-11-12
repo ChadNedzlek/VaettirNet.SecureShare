@@ -58,8 +58,8 @@ public class CommandSet<TState>
     public static CommandSet<TState> CreateFromAssembly(Assembly assembly)
     {
         Dictionary<(Type parent, string name), Type> set = new();
-        var commands = assembly.GetTypes().Where(t => !t.IsInterface && !t.IsAbstract && typeof(ICommand<TState>).IsAssignableFrom(t));
-        foreach (var command in commands)
+        IEnumerable<Type> commands = assembly.GetTypes().Where(t => !t.IsInterface && !t.IsAbstract && typeof(ICommand<TState>).IsAssignableFrom(t));
+        foreach (Type command in commands)
         {
             if (command.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<,>)) is
                 { } childCommandInterface)

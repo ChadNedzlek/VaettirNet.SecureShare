@@ -73,6 +73,8 @@ public class CommandPrompt
 
     public bool Confirm(string prompt)
     {
+        if (!prompt.EndsWith(' ')) prompt += ' ';
+        
         lock (_consoleLock)
         {
             while (true)

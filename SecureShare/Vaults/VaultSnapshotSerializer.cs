@@ -10,16 +10,16 @@ namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultSnapshotSerializer
 {
-    private readonly ProtobufObjectSerializer<Signed<VaultDataSnapshot>> _serializer;
+    private readonly ProtobufObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>> _serializer;
 
     public VaultSnapshotSerializer(params IEnumerable<Type> sealedSecretTypes)
     {
-        _serializer = ProtobufObjectSerializer<Signed<VaultDataSnapshot>>.Create(
+        _serializer = ProtobufObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>>.Create(
             model =>
             {
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
-                var sealedValueType = model.Add<UntypedSealedSecret>();
+                MetaType? sealedValueType = model.Add<UntypedSealedSecret>();
                 int fieldNumber = 20;
                 foreach (Type type in sealedSecretTypes)
                 {
@@ -34,12 +34,12 @@ public class VaultSnapshotSerializer
         );
     }
 
-    public void Serialize(Stream destination, Signed<VaultDataSnapshot> snapshot)
+    public void Serialize(Stream destination, Signed<UnvalidatedVaultDataSnapshot> snapshot)
     {
         _serializer.Serialize(destination, snapshot);
     }
 
-    public Signed<VaultDataSnapshot> Deserialize(Stream source)
+    public Signed<UnvalidatedVaultDataSnapshot> Deserialize(Stream source)
     {
         return _serializer.Deserialize(source);
     }
@@ -59,7 +59,7 @@ public class VaultSnapshotSerializer
             where TAttribute : IBinarySerializable<TAttribute>, IJsonSerializable<TAttribute>
             where TProtected : IBinarySerializable<TProtected>
         {
-            return new Builder(SecretTypes.Add(typeof(SealedSecretSecret<TAttribute, TProtected>)));
+            return new Builder(SecretTypes.Add(typeof(SealedSecret<TAttribute, TProtected>)));
         }
 
         public VaultSnapshotSerializer Build()

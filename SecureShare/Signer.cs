@@ -1,4 +1,4 @@
-namespace VaettirNet.SecureShare.Vaults;
+namespace VaettirNet.SecureShare;
 
 public readonly record struct Signer(VaultCryptographyAlgorithm Algorithm, PrivateClientInfo Keys)
 {

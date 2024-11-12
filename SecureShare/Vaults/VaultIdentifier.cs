@@ -73,11 +73,7 @@ public class VaultIdentifier : IComparable<VaultIdentifier>, IEquatable<VaultIde
     {
         if (ReferenceEquals(this, other)) return 0;
         if (other is null) return 1;
-        int nameComparison = string.Compare(Name, other.Name, StringComparison.Ordinal);
-        if (nameComparison != 0) return nameComparison;
-        int attributeTypeComparison = string.Compare(AttributeTypeName, other.AttributeTypeName, StringComparison.Ordinal);
-        if (attributeTypeComparison != 0) return attributeTypeComparison;
-        return string.Compare(ProtectedTypeName, other.ProtectedTypeName, StringComparison.Ordinal);
+        return string.Compare(Name, other.Name, StringComparison.Ordinal);
     }
 
     public int CompareTo(object? obj)

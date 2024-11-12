@@ -25,12 +25,12 @@ internal class SecretsCommand : RootCommand<RunState>
             }
 
             bool any = false;
-            foreach (SealedSecretSecret<LinkMetadata, LinkData> secret in state.Store.GetSecrets())
+            foreach (SealedSecret<LinkMetadata, LinkData> secret in state.Store.GetSecrets())
             {
                 any = true;
                 if (decrypt)
                 {
-                    var unsealed = transformer.Unseal(secret);
+                    UnsealedSecret<LinkMetadata, LinkData> unsealed = transformer.Unseal(secret);
                     Console.WriteLine(
                         $"""
                           {unsealed.Protected.Name}
@@ -54,11 +54,10 @@ internal class SecretsCommand : RootCommand<RunState>
 
             Console.WriteLine("Removed: ");
             any = false;
-            foreach (Signed<RemovedSecretRecord> secret in state.Store.GetRemovedSecrets())
+            foreach (RemovedSecretRecord secret in state.Store.GetRemovedSecrets())
             {
                 any = true;
-                RemovedSecretRecord payload = secret.DangerousGetPayload();
-                Console.WriteLine($"  id:{payload.Id} ver:{payload.Version} by:{secret.Signer}");
+                Console.WriteLine($"  id:{secret.Id} ver:{secret.Version}");
             }
 
             if (!any)
@@ -101,9 +100,9 @@ internal class SecretsCommand : RootCommand<RunState>
                 url = args[0];
             }
 
-            var secret = UnsealedSecretValue.Create(new LinkMetadata(), new LinkData(_name, url));
+            var secret = UnsealedSecret.Create(new LinkMetadata(), new LinkData(_name, url));
             SecretTransformer transformer = state.VaultManager.GetTransformer(state.Keys);
-            state.Store.UpdateSecret(transformer.Seal(secret));
+            state.Store.GetWriter(transformer).Update(transformer.Seal(secret));
             state.VaultManager.Vault.UpdateVault(state.Store.ToSnapshot());
             return 0;
         }

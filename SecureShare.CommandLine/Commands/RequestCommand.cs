@@ -4,7 +4,7 @@ using System.Buffers.Text;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
-using QrSync;
+using QRSync;
 using VaettirNet.SecureShare.CommandLine.Services;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
@@ -56,7 +56,7 @@ internal class RequestCommand : BaseCommand<RunState>
             if (!request.ExtraData.IsEmpty)
             {
                 Span<char> characters = stackalloc char[Encoding.UTF8.GetMaxCharCount(request.ExtraData.Length)];
-                var len = Encoding.UTF8.GetChars(request.ExtraData.Span, characters);
+                int len = Encoding.UTF8.GetChars(request.ExtraData.Span, characters);
                 _prompt.WriteLine($"Extra data: {characters[..len]}");
             }
 

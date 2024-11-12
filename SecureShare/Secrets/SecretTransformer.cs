@@ -101,15 +101,15 @@ public class SecretTransformer
         return enc.TryDecrypt(input, destination, out cb);
     }
 
-    public UnsealedSecretValue<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
-        SealedSecretSecret<TAttributes, TProtected> secret
+    public UnsealedSecret<TAttributes, TProtected> Unseal<TAttributes, TProtected>(
+        SealedSecret<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
         return UnsealInternal(secret);
     }
 
-    private UnsealedSecretValue<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
-        SealedSecretSecret<TAttributes, TProtected> secret
+    private UnsealedSecret<TAttributes, TProtected> UnsealInternal<TAttributes, TProtected>(
+        SealedSecret<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected>
     {
@@ -121,8 +121,8 @@ public class SecretTransformer
         return new (secret.Id, secret.Attributes, TProtected.GetBinarySerializer().Deserialize(decryptedValue.Span));
     }
 
-    public SealedSecretSecret<TAttributes, TProtected> Seal<TAttributes, TProtected>(
-        UnsealedSecretValue<TAttributes, TProtected> secret
+    public SealedSecret<TAttributes, TProtected> Seal<TAttributes, TProtected>(
+        UnsealedSecret<TAttributes, TProtected> secret
     ) where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
     {
         using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -151,7 +151,7 @@ public class SecretTransformer
             (Span<byte> s, ReadOnlySpan<byte> e, out int cb) => TryProtect(e, s, out cb),
             VaultArrayPool.Pool);
         
-        return SealedSecretValue.Create<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, hashBytes, Version);
+        return SealedSecret.Create<TAttributes, TProtected>(secret.Id, secret.Attributes, encrypted.Span.ToArray(), CurrentKeyId, hashBytes, Version);
     }
 
     public void ExportKey(Span<byte> sharedKey, out int bytesWritten)

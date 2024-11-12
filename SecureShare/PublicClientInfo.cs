@@ -1,6 +1,6 @@
 using System;
 
-namespace VaettirNet.SecureShare.Vaults;
+namespace VaettirNet.SecureShare;
 
 public struct PublicClientInfo
 {

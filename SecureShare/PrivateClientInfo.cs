@@ -1,7 +1,7 @@
 using System;
 using ProtoBuf;
 
-namespace VaettirNet.SecureShare.Vaults;
+namespace VaettirNet.SecureShare;
 
 [ProtoContract(SkipConstructor = true)]
 public class PrivateClientInfo

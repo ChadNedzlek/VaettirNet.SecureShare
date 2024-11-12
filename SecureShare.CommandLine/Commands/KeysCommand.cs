@@ -7,7 +7,6 @@ using System.Security.Cryptography;
 using Mono.Options;
 using VaettirNet.Cryptography;
 using VaettirNet.SecureShare.Serialization;
-using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare.CommandLine.Commands;
 
@@ -19,7 +18,7 @@ internal class KeysCommand : BaseCommand<RunState>
     {
         protected override int Execute(RunState state, KeysCommand parent, ImmutableList<string> args)
         {
-            state.Algorithm.Create(Guid.NewGuid(), out var keys, out _);
+            state.Algorithm.Create(Guid.NewGuid(), out PrivateClientInfo keys, out _);
             state.Keys = keys;
             return 0;
         }
@@ -54,7 +53,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 return 1;
             }
 
-            if (state.VaultSnapshot != null)
+            if (!state.LoadedSnapshot.IsEmpty)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Error.WriteLine("Unloading vault when resetting keys");
@@ -62,9 +61,9 @@ internal class KeysCommand : BaseCommand<RunState>
             }
 
             state.VaultManager = null;
-            state.LoadedSnapshot = null;
+            state.LoadedSnapshot = default;
             
-            var bytes =  File.ReadAllBytes(_path);
+            byte[] bytes =  File.ReadAllBytes(_path);
             Span<byte> unprotected = stackalloc byte[bytes.Length];
             ProtectedData.TryUnprotect(bytes, default, unprotected, DataProtectionScope.CurrentUser, out int cb);
             unprotected = unprotected[..cb];
@@ -119,7 +118,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 ArrayPool<byte>.Shared
             );
             
-            using var bytes = SpanHelpers.GrowingSpan(
+            using RentedSpan<byte> bytes = SpanHelpers.GrowingSpan(
                 stackalloc byte[unprotected.Span.Length * 2],
                 unprotected.Span,
                 (Span<byte> span, Span<byte> unprot, out int cbProtected) =>
@@ -127,7 +126,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 ArrayPool<byte>.Shared
             );
 
-            var output = bytes.Span;
+            Span<byte> output = bytes.Span;
             
             if (_password != null)
             {

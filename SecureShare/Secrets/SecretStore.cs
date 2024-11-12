@@ -8,14 +8,16 @@ using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecret<TAttributes, TProtected>> where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes> where TProtected : IBinarySerializable<TProtected>
+public class OpenVaultDEPRECATED<TAttributes, TProtected> : IEnumerable<SealedSecret<TAttributes, TProtected>>
+    where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
+    where TProtected : IBinarySerializable<TProtected>
 {
-    private readonly Dictionary<Guid, SealedSecretSecret<TAttributes, TProtected>> _secrets;
-    private readonly List<Signed<RemovedSecretRecord>> _deleted;
+    private readonly Dictionary<Guid, SealedSecret<TAttributes, TProtected>> _secrets;
+    private readonly HashSet<RemovedSecretRecord> _deleted;
     private readonly SecretTransformer _transformer;
     private readonly string? _name;
 
-    public SecretStore(string? name, SecretTransformer transformer)
+    public OpenVaultDEPRECATED(string? name, SecretTransformer transformer)
     {
         _name = name;
         _transformer = transformer;
@@ -23,12 +25,12 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
         _deleted = [];
     }
 
-    public SecretStore(string? name, UntypedVaultSnapshot vault, SecretTransformer transformer)
+    public OpenVaultDEPRECATED(string? name, UntypedVaultSnapshot vault, SecretTransformer transformer)
     {
         _name = name;
         _transformer = transformer;
-        _secrets = vault.Secrets?.Cast<SealedSecretSecret<TAttributes, TProtected>>().ToDictionary(s => s.Id) ?? [];
-        _deleted = vault.RemovedSecrets?.ToList() ?? [];
+        _secrets = vault.Secrets.Cast<SealedSecret<TAttributes, TProtected>>().ToDictionary(s => s.Id);
+        _deleted = new HashSet<RemovedSecretRecord>(vault.RemovedSecrets, RemovedSecretRecord.Comparer.Instance);
     }
 
     public UntypedVaultSnapshot ToSnapshot()
@@ -36,7 +38,7 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
         return new UntypedVaultSnapshot(VaultIdentifier.Create<TAttributes, TProtected>(_name), _secrets.Values, _deleted);
     }
 
-    public IEnumerator<SealedSecretSecret<TAttributes, TProtected>> GetEnumerator()
+    public IEnumerator<SealedSecret<TAttributes, TProtected>> GetEnumerator()
     {
         return _secrets.Values.GetEnumerator();
     }
@@ -47,9 +49,9 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
         return ((IEnumerable)_secrets.Values).GetEnumerator();
     }
 
-    public UnsealedSecretValue<TAttributes, TProtected> GetUnsealed(Guid id) => _transformer.Unseal(Get(id));
+    public UnsealedSecret<TAttributes, TProtected> GetUnsealed(Guid id) => _transformer.Unseal(Get(id));
 
-    public SealedSecretSecret<TAttributes, TProtected> Get(Guid id)
+    public SealedSecret<TAttributes, TProtected> Get(Guid id)
     {
         lock (_secrets)
         {
@@ -60,15 +62,15 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
     public Guid Add(TAttributes attributes, TProtected @protected)
     {
         Guid id = Guid.NewGuid();
-        Set(new UnsealedSecretValue<TAttributes, TProtected>(id, attributes, @protected));
+        Set(new UnsealedSecret<TAttributes, TProtected>(id, attributes, @protected));
         return id;
     }
 
-    public void Set(UnsealedSecretValue<TAttributes, TProtected> value) => Set(_transformer.Seal(value));
+    public void Set(UnsealedSecret<TAttributes, TProtected> value) => Set(_transformer.Seal(value));
 
-    public void Set(SealedSecretSecret<TAttributes, TProtected> secret)
+    public void Set(SealedSecret<TAttributes, TProtected> secret)
     {
-        if (_secrets.TryGetValue(secret.Id, out var existing))
+        if (_secrets.TryGetValue(secret.Id, out SealedSecret<TAttributes, TProtected>? existing))
         {
             _secrets[secret.Id] = secret.WithVersion(existing.Version + 1);
         }
@@ -78,11 +80,11 @@ public class SecretStore<TAttributes, TProtected> : IEnumerable<SealedSecretSecr
         }
     }
 
-    public void Remove(Guid id, VaultCryptographyAlgorithm algorithm, PrivateClientInfo key)
+    public void Remove(Guid id)
     {
-        if (_secrets.Remove(id, out SealedSecretSecret<TAttributes, TProtected>? secret))
+        if (_secrets.Remove(id, out SealedSecret<TAttributes, TProtected>? secret))
         {
-            _deleted.Add(algorithm.Sign(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes), key));
+            _deleted.Add(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes));
         }
     }
 }

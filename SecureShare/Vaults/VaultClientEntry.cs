@@ -4,7 +4,7 @@ using ProtoBuf;
 namespace VaettirNet.SecureShare.Vaults;
 
 [ProtoContract(UseProtoMembersOnly = true, SkipConstructor = true)]
-public class VaultClientEntry
+public class VaultClientEntry : IComparable<VaultClientEntry>, IComparable, IEquatable<VaultClientEntry>
 {
     public PublicClientInfo PublicInfo => new(ClientId, EncryptionKey, SigningKey);
     [ProtoMember(1)]
@@ -42,5 +42,39 @@ public class VaultClientEntry
         encryptionKey = EncryptionKey;
         signingKey = SigningKey;
         encryptedSharedKey = EncryptedSharedKey;
+    }
+
+    public int CompareTo(VaultClientEntry? other)
+    {
+        if (ReferenceEquals(this, other)) return 0;
+        if (other is null) return 1;
+        return ClientId.CompareTo(other.ClientId);
+    }
+
+    public int CompareTo(object? obj)
+    {
+        if (obj is null) return 1;
+        if (ReferenceEquals(this, obj)) return 0;
+        return obj is VaultClientEntry other ? CompareTo(other) : throw new ArgumentException($"Object must be of type {nameof(VaultClientEntry)}");
+    }
+
+    public bool Equals(VaultClientEntry? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return ClientId.Equals(other.ClientId) && Description == other.Description && EncryptionKey.Equals(other.EncryptionKey) && SigningKey.Equals(other.SigningKey);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != GetType()) return false;
+        return Equals((VaultClientEntry)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(ClientId, Description, EncryptionKey, SigningKey);
     }
 }

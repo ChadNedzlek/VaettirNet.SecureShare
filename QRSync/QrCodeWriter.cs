@@ -4,13 +4,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Net.Codecrete.QrCodeGenerator;
 
-namespace QrSync;
+namespace QRSync;
 
 public static class QrCodeWriter
 {
     public static bool TryWritePng(ReadOnlySpan<byte> data, Span<byte> output, out int cb)
     {
-        var ret = GetPngData(data);
+        byte[]? ret = GetPngData(data);
         cb = ret.Length;
         if (output.Length < ret.Length)
         {
@@ -30,7 +30,7 @@ public static class QrCodeWriter
 
     public static ValueTask WritePngAsync(ReadOnlySpan<byte> data, Stream stream, CancellationToken cancellationToken = default)
     {
-        var ret = GetPngData(data);
+        byte[]? ret = GetPngData(data);
         return stream.WriteAsync(ret, cancellationToken);
     }
     

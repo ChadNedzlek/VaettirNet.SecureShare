@@ -3,7 +3,7 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-public class UnsealedSecretValue<TAttributes, TProtected>
+public class UnsealedSecret<TAttributes, TProtected>
     where TAttributes : IJsonSerializable<TAttributes>, IBinarySerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>
 {
@@ -11,7 +11,7 @@ public class UnsealedSecretValue<TAttributes, TProtected>
     public TAttributes Attributes { get; private set; }
     public TProtected Protected { get; private set; }
 
-    public UnsealedSecretValue(Guid id, TAttributes attributes, TProtected @protected)
+    public UnsealedSecret(Guid id, TAttributes attributes, TProtected @protected)
     {
         Id = id;
         Attributes = attributes;
@@ -19,14 +19,14 @@ public class UnsealedSecretValue<TAttributes, TProtected>
     }
 }
 
-public static class UnsealedSecretValue
+public static class UnsealedSecret
 {
-    public static UnsealedSecretValue<TAttributes, TProtected>
+    public static UnsealedSecret<TAttributes, TProtected>
         Create<TAttributes, TProtected>(Guid id, TAttributes attributes, TProtected @protected)
         where TAttributes : IJsonSerializable<TAttributes>, IBinarySerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected> => new(id, attributes, @protected);
     
-    public static UnsealedSecretValue<TAttributes, TProtected>
+    public static UnsealedSecret<TAttributes, TProtected>
         Create<TAttributes, TProtected>(TAttributes attributes, TProtected @protected)
         where TAttributes : IJsonSerializable<TAttributes>, IBinarySerializable<TAttributes>
         where TProtected : IBinarySerializable<TProtected> => new(Guid.NewGuid(), attributes, @protected);
