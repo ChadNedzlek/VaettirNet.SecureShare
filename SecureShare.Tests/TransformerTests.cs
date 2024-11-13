@@ -9,12 +9,12 @@ public class TransformerTests
     public void SealUnseal()
     {
         SecretTransformer s = SecretTransformer.CreateRandom();
-        UnsealedSecretValue<SecretAttributes, SecretProtectedValue> rawValue = new(Guid.NewGuid(),
+        UnsealedSecret<SecretAttributes, SecretProtectedValue> rawValue = new(Guid.NewGuid(),
             new() { Value = "attribute value" },
             new() { ProtValue = "Secret Cheese" }
         );
-        SealedSecretSecret<SecretAttributes, SecretProtectedValue> sealedSecret = s.Seal(rawValue);
-        UnsealedSecretValue<SecretAttributes, SecretProtectedValue> outputValue = s.Unseal(sealedSecret);
+        SealedSecret<SecretAttributes, SecretProtectedValue> sealedSecret = s.Seal(rawValue);
+        UnsealedSecret<SecretAttributes, SecretProtectedValue> outputValue = s.Unseal(sealedSecret);
         outputValue.Should().BeEquivalentTo(rawValue);
     }
 }

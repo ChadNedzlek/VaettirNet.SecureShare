@@ -19,7 +19,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         _typeModel = RuntimeTypeModel.Create();
         _typeModel.Add<T>();
         _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
-        foreach (var type in additionalTypes)
+        foreach (Type? type in additionalTypes)
         {
             _typeModel.Add(type);
         }
@@ -49,7 +49,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         if (additionalTypes.IsEmpty)
             return Instance;
 
-        foreach (var type in additionalTypes)
+        foreach (Type? type in additionalTypes)
         {
             ValidateType(type);
         }

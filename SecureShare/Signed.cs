@@ -8,6 +8,12 @@ public class Signed<T> where T : ISignable
 {
     [ProtoMember(1)]
     private T _payload;
+    
+    [ProtoMember(3)]
+    public Guid Signer { get; }
+
+    [ProtoMember(2)]
+    public ReadOnlyMemory<byte> Signature { get; private set; }
 
     public Signed(T payload, Guid signer, ReadOnlyMemory<byte> signature)
     {
@@ -15,11 +21,6 @@ public class Signed<T> where T : ISignable
         Signature = signature;
         Signer = signer;
     }
-
-    [ProtoMember(2)]
-    public ReadOnlyMemory<byte> Signature { get; private set; }
-    
-    public Guid Signer { get; }
 
     public T DangerousGetPayload() => _payload;
 }

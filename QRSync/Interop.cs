@@ -1,7 +1,7 @@
 ﻿using System.Drawing;
 using System.Runtime.InteropServices;
 
-namespace QrSync;
+namespace QRSync;
 
 internal static partial class Interop
 {

@@ -1,8 +1,9 @@
-using SkiaSharp;
 using System;
 using System.IO;
+using Net.Codecrete.QrCodeGenerator;
+using SkiaSharp;
 
-namespace Net.Codecrete.QrCodeGenerator
+namespace QRSync
 {
     public static class QrCodeBitmapExtensions
     {

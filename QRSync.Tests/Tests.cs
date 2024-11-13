@@ -10,7 +10,7 @@ using System.Reflection;
 using System.Runtime.Versioning;
 using FluentAssertions;
 
-namespace QrSync.Tests;
+namespace QRSync.Tests;
 
 public class Tests
 {
@@ -43,11 +43,11 @@ public class Tests
     [SupportedOSPlatform("windows")]
     public void OneOff()
     {
-        var dest = IPAddress.Parse("10.0.0.101");
+        IPAddress dest = IPAddress.Parse("10.0.0.101");
         IPNetwork[] net = [IPNetwork.Parse("10.0.0.0/8"), IPNetwork.Parse("172.16.0.0/12"), IPNetwork.Parse("192.168.0.0/16")];
-        foreach (var iface in NetworkInterface.GetAllNetworkInterfaces())
+        foreach (NetworkInterface iface in NetworkInterface.GetAllNetworkInterfaces())
         {
-            foreach (var uni in iface.GetIPProperties().UnicastAddresses)
+            foreach (UnicastIPAddressInformation uni in iface.GetIPProperties().UnicastAddresses)
             {
                 if (uni.Address.AddressFamily == AddressFamily.InterNetwork && net.Any(n => n.Contains(uni.Address)))
                 {

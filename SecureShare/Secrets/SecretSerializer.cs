@@ -1,1 +1,0 @@
-namespace VaettirNet.SecureShare.Secrets;

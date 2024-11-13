@@ -1,8 +1,7 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
-using ProtoBuf.Meta;
-using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
+using VaettirNet.SecureShare.Vaults;
 
 namespace SecureShare.Tests;
 
@@ -49,36 +48,29 @@ public class SerializationTests
     [Test]
     public void UpdateChangesVersion()
     {
-        VaultCryptographyAlgorithm alg = new VaultCryptographyAlgorithm();
-        SecretStore<SecretAttributes, SecretProtectedValue> store = new(null, SecretTransformer.CreateRandom());
-        Guid id = store.Add("Attribute Value", "Protected Value");
-        SealedSecretSecret<SecretAttributes, SecretProtectedValue> sealedSecret = store.Get(id);
+        SecretTransformer transformer = SecretTransformer.CreateRandom();
+        OpenVaultReader<SecretAttributes, SecretProtectedValue> store = OpenVaultReader<SecretAttributes, SecretProtectedValue>.FromSnapshot(
+            new UntypedVaultSnapshot(VaultIdentifier.Create<SecretAttributes, SecretProtectedValue>(), [], [])
+        );
+        OpenVaultReader<SecretAttributes, SecretProtectedValue>.Writer writer = store.GetWriter(transformer);
+        Guid id = writer.Add(new SecretAttributes{Value = "Attribute Value"}, new SecretProtectedValue{ProtValue = "Protected Value"});
+        SealedSecret<SecretAttributes, SecretProtectedValue> sealedSecret = store.Get(id);
         sealedSecret.Version.Should().Be(1);
         sealedSecret.Attributes.Value.Should().Be("Attribute Value");
-        store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Protected Value"));
-        SealedSecretSecret<SecretAttributes, SecretProtectedValue> modifiedAttr = store.Get(id);
+        writer.Update(id, "Different Value", "Protected Value");
+        SealedSecret<SecretAttributes, SecretProtectedValue> modifiedAttr = store.Get(id);
         modifiedAttr.Version.Should().Be(2);
         modifiedAttr.Attributes.Value.Should().Be("Different Value");
         Convert.ToBase64String(modifiedAttr.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
-        store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Different Value", "Different Protected Value"));
-        SealedSecretSecret<SecretAttributes, SecretProtectedValue> modifiedProtectedS = store.Get(id);
+        writer.Update(id, "Different Value", "Different Protected Value");
+        SealedSecret<SecretAttributes, SecretProtectedValue> modifiedProtectedS = store.Get(id);
         modifiedProtectedS.Version.Should().Be(3);
         modifiedProtectedS.Attributes.Value.Should().Be("Different Value");
         Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
         Convert.ToBase64String(modifiedProtectedS.HashBytes.Span).Should().NotBeEquivalentTo(Convert.ToBase64String(modifiedAttr.HashBytes.Span));
-        store.Set(new UnsealedSecretValue<SecretAttributes, SecretProtectedValue>(id, "Attribute Value", "Protected Value"));
-        SealedSecretSecret<SecretAttributes, SecretProtectedValue> reset = store.Get(id);
+        writer.Update(id, "Attribute Value", "Protected Value");
+        SealedSecret<SecretAttributes, SecretProtectedValue> reset = store.Get(id);
         reset.Version.Should().Be(4);
         Convert.ToBase64String(reset.HashBytes.Span).Should().BeEquivalentTo(Convert.ToBase64String(sealedSecret.HashBytes.Span));
-    }
-
-    [Test]
-    public void Thing()
-    {
-        RuntimeTypeModel model = RuntimeTypeModel.Create();
-        model.Add<Container>();
-        model.Add<TestValue>()
-            .AddSubType(1, typeof(SubValue<int>));
-        var t = model.Compile();
     }
 }

@@ -1,8 +1,5 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
-using VaettirNet.SecureShare.Serialization;
-using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare;
 
@@ -16,27 +13,12 @@ public class VaultCryptographyAlgorithm
         out int bytesWritten
     )
     {
-        return TryEncryptFor(plainText, privateInfo, default, forPublicInfo, encrypted, out bytesWritten);
-    }
-
-    public bool TryEncryptFor(
-        ReadOnlySpan<byte> plainText,
-        PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password,
-        PublicClientInfo forPublicInfo,
-        Span<byte> encrypted,
-        out int bytesWritten
-    )
-    {
         using Aes aes = Aes.Create();
         bytesWritten = plainText.Length + 2 * (aes.BlockSize / 8) - plainText.Length % (aes.BlockSize / 8);
         if (bytesWritten > encrypted.Length) return false;
 
         using ECDiffieHellman self = ECDiffieHellman.Create();
-        if (password.IsEmpty)
-            self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
-        else
-            self.ImportEncryptedPkcs8PrivateKey(password, privateInfo.EncryptionKey.Span, out _);
+        self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
 
         using ECDiffieHellman other = ECDiffieHellman.Create();
         other.ImportSubjectPublicKeyInfo(forPublicInfo.EncryptionKey.Span, out _);
@@ -58,25 +40,10 @@ public class VaultCryptographyAlgorithm
         out int bytesWritten
     )
     {
-        return TryDecryptFrom(encrypted, privateInfo, default, fromClientInfo, plainText, out bytesWritten);
-    }
-
-    public bool TryDecryptFrom(
-        ReadOnlySpan<byte> encrypted,
-        PrivateClientInfo privateInfo,
-        ReadOnlySpan<char> password,
-        PublicClientInfo fromClientInfo,
-        Span<byte> plainText,
-        out int bytesWritten
-    )
-    {
         using Aes aes = Aes.Create();
 
         using ECDiffieHellman self = ECDiffieHellman.Create();
-        if (password.IsEmpty)
-            self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
-        else
-            self.ImportEncryptedPkcs8PrivateKey(password, privateInfo.EncryptionKey.Span, out _);
+        self.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
 
         using ECDiffieHellman other = ECDiffieHellman.Create();
         other.ImportSubjectPublicKeyInfo(fromClientInfo.EncryptionKey.Span, out _);
@@ -89,109 +56,70 @@ public class VaultCryptographyAlgorithm
         return aes.TryDecryptCbc(cipherText, iv, plainText, out bytesWritten);
     }
 
-    public void Create(Guid clientId, out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo) => Create(clientId, default, out privateInfo, out publicInfo);
-
-    public void Create(Guid clientId, ReadOnlySpan<char> password, out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo)
+    public void Create(Guid clientId, out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo)
     {
         using ECDiffieHellman enc = ECDiffieHellman.Create();
-        byte[] encryptionPrivateKeyBytes = new byte[200];
-        int cbEncryptionPrivateKey;
-        if (password.IsEmpty)
-        {
-            while (!enc.TryExportPkcs8PrivateKey(encryptionPrivateKeyBytes, out cbEncryptionPrivateKey))
-            {
-                encryptionPrivateKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
-            }
-        }
-        else
-        {
-            while (!enc.TryExportEncryptedPkcs8PrivateKey(password,
-                new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA512, 10000),
-                encryptionPrivateKeyBytes,
-                out cbEncryptionPrivateKey))
-            {
-                encryptionPrivateKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
-            }
-        }
-
-        byte[] encryptionPublicKeyBytes = new byte[200];
-        int cbEncryptionPublicKey;
-        while (!enc.TryExportSubjectPublicKeyInfo(encryptionPublicKeyBytes, out cbEncryptionPublicKey))
-        {
-            encryptionPublicKeyBytes = new byte[encryptionPrivateKeyBytes.Length + 100];
-        }
+        using RentedSpan<byte> encryptionPrivateBytes = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => enc.TryExportPkcs8PrivateKey(span, out cb),
+            VaultArrayPool.Pool
+        );
+        
+        using RentedSpan<byte> encryptionPublicKeyBytes = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => enc.TryExportSubjectPublicKeyInfo(span, out cb),
+            VaultArrayPool.Pool
+        );
 
         using ECDsa sign = ECDsa.Create();
-        byte[] signingPrivateKeyBytes = new byte[200];
-        int cbSigningPrivateKey;
-        if (password.IsEmpty)
-        {
-            while (!sign.TryExportPkcs8PrivateKey(signingPrivateKeyBytes, out cbSigningPrivateKey))
-            {
-                signingPrivateKeyBytes = new byte[signingPrivateKeyBytes.Length + 100];
-            }
-        }
-        else
-        {
-            while (!sign.TryExportEncryptedPkcs8PrivateKey(password,
-                new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA512, 10000),
-                signingPrivateKeyBytes,
-                out cbSigningPrivateKey))
-            {
-                signingPrivateKeyBytes = new byte[signingPrivateKeyBytes.Length + 100];
-            }
-        }
+        using RentedSpan<byte> signingPrivateKeyBytes = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => sign.TryExportPkcs8PrivateKey(span, out cb),
+            VaultArrayPool.Pool
+        );
 
-        byte[] signingPublicKeyBytes = new byte[200];
-        int cbSigningPublicKey;
-        while (!sign.TryExportSubjectPublicKeyInfo(signingPublicKeyBytes, out cbSigningPublicKey))
-        {
-            signingPublicKeyBytes = new byte[signingPublicKeyBytes.Length + 100];
-        }
+        using RentedSpan<byte> signingPublicKey = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => sign.TryExportSubjectPublicKeyInfo(span, out cb),
+            VaultArrayPool.Pool
+        );
 
         privateInfo = new PrivateClientInfo(
             clientId,
-            encryptionPrivateKeyBytes.AsMemory(0, cbEncryptionPrivateKey),
-            signingPrivateKeyBytes.AsMemory(0, cbSigningPrivateKey)
+            encryptionPrivateBytes.Span.ToArray(),
+            signingPrivateKeyBytes.Span.ToArray()
         );
         publicInfo = new PublicClientInfo(
-            encryptionPublicKeyBytes.AsMemory(0, cbEncryptionPublicKey),
-            signingPublicKeyBytes.AsMemory(0, cbSigningPublicKey)
+            clientId,
+            encryptionPublicKeyBytes.Span.ToArray(),
+            signingPublicKey.Span.ToArray()
         );
     }
 
-    public Signed<T> Sign<T>(T toSign, PrivateClientInfo privateInfo, ReadOnlySpan<char> password) where T : ISignable
+    public Validated<T> Sign<T>(T toSign, PrivateClientInfo privateInfo) where T : ISignable
     {
         using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
             (Span<byte> span, out int cb) => toSign.TryGetDataToSign(span, out cb),
             VaultArrayPool.Pool);
 
-        byte[] signature = GetSignatureForByteArray(privateInfo, password, data.Span);
-        return Signed.Create(toSign, privateInfo.ClientId, signature);
+        byte[] signature = GetSignatureForByteArray(privateInfo, data.Span);
+        return Validated.AssertValid(Signed.Create(toSign, privateInfo.ClientId, signature));
     }
 
-    public byte[] GetSignatureForByteArray(PrivateClientInfo privateInfo, ReadOnlySpan<char> password, Span<byte> data)
+    public byte[] GetSignatureForByteArray(PrivateClientInfo privateInfo, Span<byte> data)
     {
-        var dsa = ECDsa.Create();
-        if (password.IsEmpty)
-        {
-            dsa.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
-        }
-        else
-        {
-            dsa.ImportEncryptedPkcs8PrivateKey(password, privateInfo.SigningKey.Span, out _);
-        }
-
+        ECDsa dsa = ECDsa.Create();
+        dsa.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
         byte[] signature = dsa.SignData(data, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
         return signature;
     }
 
-    public bool TryGetPayload<T>(Signed<T> toSign, PublicClientInfo publicInfo, [MaybeNullWhen(false)] out T payload) where T : ISignable
+    public bool TryValidate<T>(Signed<T> signed, PublicClientInfo publicInfo, out Validated<T> validated) where T : ISignable
     {
-        T unvalidated = toSign.DangerousGetPayload();
+        T unvalidated = signed.DangerousGetPayload();
         
-        var dsa = ECDsa.Create();
+        ECDsa dsa = ECDsa.Create();
         dsa.ImportSubjectPublicKeyInfo(publicInfo.SigningKey.Span, out _);
 
         using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
@@ -199,13 +127,66 @@ public class VaultCryptographyAlgorithm
             (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
             VaultArrayPool.Pool);
 
-        if (!dsa.VerifyData(data.Span, toSign.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        {
+            validated = default;
+            return false;
+        }
+
+        validated = Validated<T>.AssertValid(signed);
+        return true;
+    }
+
+    public bool TryValidate<T>(Signed<T> signed, ReadOnlySpan<byte> publicKey, out Validated<T> payload) where T : ISignable
+    {
+        T unvalidated = signed.DangerousGetPayload();
+        
+        ECDsa dsa = ECDsa.Create();
+        dsa.ImportSubjectPublicKeyInfo(publicKey, out _);
+
+        using RentedSpan<byte> data = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
+            VaultArrayPool.Pool);
+
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
         {
             payload = default;
             return false;
         }
 
-        payload = unvalidated;
+        payload = Validated.AssertValid(signed);
         return true;
+    }
+
+    public T GetPayload<T>(Signed<T> signed, PublicClientInfo publicInfo) where T : ISignable
+    {
+        if (!TryValidate(signed, publicInfo, out var payload))
+        {
+            throw new ArgumentException("Signed is not validly signed by signer");
+        }
+
+        return payload;
+    }
+
+    public PublicClientInfo GetPublic(PrivateClientInfo privateInfo)
+    {
+        using ECDiffieHellman encryption = ECDiffieHellman.Create();
+        encryption.ImportPkcs8PrivateKey(privateInfo.EncryptionKey.Span, out _);
+        using ECDsa signing = ECDsa.Create();
+        signing.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
+        
+        using RentedSpan<byte> signingPublicKey = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => signing.TryExportSubjectPublicKeyInfo(span, out cb),
+            VaultArrayPool.Pool
+        );
+        using RentedSpan<byte> encryptionPublicKey = SpanHelpers.GrowingSpan(
+            stackalloc byte[200],
+            (Span<byte> span, out int cb) => encryption.TryExportSubjectPublicKeyInfo(span, out cb),
+            VaultArrayPool.Pool
+        );
+
+        return new PublicClientInfo(privateInfo.ClientId, encryptionPublicKey.Span.ToArray(), signingPublicKey.Span.ToArray());
     }
 }

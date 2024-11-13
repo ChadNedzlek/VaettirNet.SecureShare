@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,51 +11,56 @@ using VaettirNet.SecureShare.Serialization;
 namespace VaettirNet.SecureShare.Vaults;
 
 [ProtoContract(SkipConstructor = true)]
-public class VaultDataSnapshot : BinarySerializable<VaultDataSnapshot>, ISignable
+public class UnvalidatedVaultDataSnapshot : BinarySerializable<UnvalidatedVaultDataSnapshot>, ISignable
 {
     [ProtoMember(1)]
-    public ImmutableList<VaultClientEntry>? Clients { get; private set; }
+    public ImmutableSortedSet<VaultClientEntry>? Clients { get; private set; }
 
     [ProtoMember(2)]
-    public ImmutableList<BlockedVaultClientEntry>? BlockedClients { get; private set; }
+    public ImmutableSortedSet<BlockedVaultClientEntry>? BlockedClients { get; private set; }
 
     [ProtoMember(3)]
     public ImmutableList<Signed<ClientModificationRecord>>? ClientModifications { get; private set; }
 
     [ProtoMember(4)]
-    public ImmutableList<UntypedVaultSnapshot>? Vaults { get; private set; }
+    public ImmutableSortedSet<UntypedVaultSnapshot>? Vaults { get; private set; }
+    
+    [ProtoMember(5)]
+    public uint Version { get; private set; }
 
-    public VaultDataSnapshot(
-        IEnumerable<VaultClientEntry> clients,
-        IEnumerable<BlockedVaultClientEntry> blockedClients,
-        IEnumerable<Signed<ClientModificationRecord>> clientModifications,
-        IEnumerable<UntypedVaultSnapshot> vaults
+    public UnvalidatedVaultDataSnapshot(
+        IEnumerable<VaultClientEntry>? clients,
+        IEnumerable<BlockedVaultClientEntry>? blockedClients,
+        IEnumerable<Signed<ClientModificationRecord>>? clientModifications,
+        IEnumerable<UntypedVaultSnapshot>? vaults,
+        uint version = 1
     )
     {
-        Clients = clients.OrderBy(c => c.ClientId).ToImmutableList();
-        BlockedClients = blockedClients.OrderBy(c => c.ClientId).ToImmutableList();
-        ClientModifications = clientModifications.ToImmutableList();
-        Vaults = vaults.OrderBy(v => v.Id.Name).ToImmutableList();
+        Version = version;
+        Clients = clients?.ToImmutableSortedSet();
+        BlockedClients = blockedClients?.ToImmutableSortedSet();
+        ClientModifications = clientModifications?.ToImmutableList();
+        Vaults = vaults?.ToImmutableSortedSet();
     }
-    
+
     public bool TryGetDataToSign(Span<byte> destination, out int cb)
     {
         using IncrementalHash hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
-        AppendInt(hasher, Clients.Count);
+        AppendInt(hasher, Clients?.Count ?? 0);
         Span<byte> buffer = stackalloc byte[1000];
-        foreach (var client in Clients)
+        foreach (VaultClientEntry? client in Clients ?? [])
         {
             AppendGuid(hasher, client.ClientId, buffer);
         }
         
-        AppendInt(hasher, BlockedClients.Count);
-        foreach (var client in BlockedClients)
+        AppendInt(hasher, BlockedClients?.Count ?? 0);
+        foreach (BlockedVaultClientEntry? client in BlockedClients ?? [])
         {
             AppendGuid(hasher, client.ClientId, buffer);
         }
 
-        AppendInt(hasher, Vaults.Count);
-        foreach (UntypedVaultSnapshot vault in Vaults)
+        AppendInt(hasher, Vaults?.Count ?? 0);
+        foreach (UntypedVaultSnapshot vault in Vaults ?? [])
         {
             AppendString(hasher, vault.Id.Name, buffer);
             AppendString(hasher, vault.Id.AttributeTypeName, buffer);
@@ -69,9 +73,9 @@ public class VaultDataSnapshot : BinarySerializable<VaultDataSnapshot>, ISignabl
             }
             
             AppendInt(hasher, vault.RemovedSecrets.Count);
-            foreach (Signed<RemovedSecretRecord> secret in vault.RemovedSecrets)
+            foreach (RemovedSecretRecord secret in vault.RemovedSecrets)
             {
-                AppendGuid(hasher, secret.DangerousGetPayload().Id, buffer);
+                AppendGuid(hasher, secret.Id, buffer);
             }
         }
         
@@ -91,7 +95,7 @@ public class VaultDataSnapshot : BinarySerializable<VaultDataSnapshot>, ISignabl
         static void AppendString(IncrementalHash h, string value, Span<byte> buffer)
         {
             AppendInt(h, value.Length);
-            var len = Encoding.UTF8.GetBytes(value, buffer);
+            int len = Encoding.UTF8.GetBytes(value, buffer);
             h.AppendData(buffer[..len]);
         }
     }

@@ -4,22 +4,36 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract]
-public class BlockedVaultClientEntry : IBinarySerializable<BlockedVaultClientEntry>
+[ProtoContract(SkipConstructor = true)]
+public class BlockedVaultClientEntry : IBinarySerializable<BlockedVaultClientEntry>, IComparable<BlockedVaultClientEntry>, IComparable
 {
     public static IBinarySerializer<BlockedVaultClientEntry> GetBinarySerializer() => ProtobufObjectSerializer<BlockedVaultClientEntry>.Create();
     
     [ProtoMember(1)]
-    public required Guid ClientId { get; init; }
+    public Guid ClientId { get; private set; }
     [ProtoMember(2)]
-    public required string Description { get; init; }
+    public string Description { get; private set; }
     [ProtoMember(3)]
-    public required ReadOnlyMemory<byte> PublicKey { get; init; }
+    public ReadOnlyMemory<byte> PublicKey { get; private set; }
 
-    public void Deconstruct(out Guid clientId, out string description, out ReadOnlyMemory<byte> publicKey)
+    public BlockedVaultClientEntry(Guid clientId, string description, ReadOnlyMemory<byte> publicKey)
     {
-        clientId = ClientId;
-        description = Description;
-        publicKey = PublicKey;
+        ClientId = clientId;
+        Description = description;
+        PublicKey = publicKey;
+    }
+
+    public int CompareTo(BlockedVaultClientEntry? other)
+    {
+        if (ReferenceEquals(this, other)) return 0;
+        if (other is null) return 1;
+        return ClientId.CompareTo(other.ClientId);
+    }
+
+    public int CompareTo(object? obj)
+    {
+        if (obj is null) return 1;
+        if (ReferenceEquals(this, obj)) return 0;
+        return obj is BlockedVaultClientEntry other ? CompareTo(other) : throw new ArgumentException($"Object must be of type {nameof(BlockedVaultClientEntry)}");
     }
 }

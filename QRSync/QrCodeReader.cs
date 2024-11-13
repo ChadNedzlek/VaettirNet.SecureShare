@@ -11,7 +11,7 @@ using ZXing;
 using ZXing.Common;
 using ZXing.Multi.QrCode;
 
-namespace QrSync;
+namespace QRSync;
 
 public class QrCodeReader
 {
