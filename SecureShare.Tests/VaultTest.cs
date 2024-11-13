@@ -80,6 +80,7 @@ public class VaultTest
         roundTripped.DangerousGetPayload().Should().BeEquivalentTo(signed.DangerousGetPayload(), o =>
             {
                 o.ComparingByMembers<PublicClientInfo>();
+                o.ComparingByMembers<VaultClientEntry>();
                 o.Using<ReadOnlyMemory<byte>, MemoryComparer<byte>>();
                 return o;
             }

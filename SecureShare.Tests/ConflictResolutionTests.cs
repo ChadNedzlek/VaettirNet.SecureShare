@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentAssertions;
 using ProtoBuf;
 using VaettirNet.SecureShare;
@@ -96,22 +97,25 @@ public class ConflictResolutionTests
     public void LocalOnlyModification()
     {
         ValidatedVaultDataSnapshot localVault = BuildBasicVault();
-        AddSecret(ref localVault, "Added Secret", "Added Prot", s_self);
+        var id = AddSecret(ref localVault, "Added Secret", "Added Prot", s_self);
         var resolution = s_resolver.Resolve(BuildBasicVault(), BuildBasicVault(), localVault);
         resolution.Items.Should().BeEmpty();
         s_resolver.TryAutoResolveConflicts(resolution, new RefSigner(s_algorithm, s_new.PrivateInfo), out var snapshot).Should().BeTrue();
         snapshot.TryGetSignerPublicInfo(out var signerInfo).Should().BeTrue();
         signerInfo.ClientId.Should().Be(s_self.Id, because: "no conflict should not resign/modify vault");
+        (string attributeValue, string protectedValue) = GetSecretValues(snapshot, id);
+        attributeValue.Should().Be("Added Secret");
+        attributeValue.Should().Be("Added Prot");
     }
 
-    private void AddSecret(
+    private Guid AddSecret(
         ref ValidatedVaultDataSnapshot input,
         string attributeValue,
         string protectedValue,
         ClientData client
     ) => AddSecret(ref input, new SecretAttributes { Value = attributeValue }, new SecretProtectedValue { ProtValue = protectedValue }, client);
 
-    private void AddSecret<TAttribute, TProtected>(
+    private Guid AddSecret<TAttribute, TProtected>(
         ref ValidatedVaultDataSnapshot input,
         TAttribute attributeValue,
         TProtected protectedValue,
@@ -121,17 +125,34 @@ public class ConflictResolutionTests
         where TProtected : IBinarySerializable<TProtected>
         => AddSecret(ref input, VaultIdentifier.Create<TAttribute, TProtected>("First Vault"), attributeValue, protectedValue, client);
 
-    private void AddSecret<TAttribute, TProtected>(ref ValidatedVaultDataSnapshot input, VaultIdentifier id, TAttribute attributeValue, TProtected protectedValue, ClientData client)
+    private Guid AddSecret<TAttribute, TProtected>(ref ValidatedVaultDataSnapshot input, VaultIdentifier id, TAttribute attributeValue, TProtected protectedValue, ClientData client)
         where TAttribute : IBinarySerializable<TAttribute>, IJsonSerializable<TAttribute>
         where TProtected : IBinarySerializable<TProtected>
     {
         LiveVaultData live = LiveVaultData.FromSnapshot(input);
         OpenVaultReader<TAttribute,TProtected> store = live.GetStoreOrDefault<TAttribute, TProtected>(id.Name);
-        store.GetWriter(s_transformer).Add(attributeValue, protectedValue);
+        var secretId = store.GetWriter(s_transformer).Add(attributeValue, protectedValue);
         live.UpdateVault(store.ToSnapshot());
         input = live.GetSnapshot(new RefSigner(s_algorithm, client.PrivateInfo));
+        return secretId;
     }
-    
+
+    private (string attr, string prot) GetSecretValues(ValidatedVaultDataSnapshot snapshot, Guid secretId)
+        => GetSecretValues(snapshot, VaultIdentifier.Create<SecretAttributes, SecretProtectedValue>("First Vault"), secretId);
+
+    private (string attr, string prot) GetSecretValues(ValidatedVaultDataSnapshot snapshot, VaultIdentifier vaultId, Guid secretId)
+    {
+        UnsealedSecret<SecretAttributes, SecretProtectedValue> secret = s_transformer.Unseal(GetSecret<SecretAttributes, SecretProtectedValue>(snapshot, vaultId, secretId));
+        return (secret.Attributes.Value, secret.Protected.ProtValue);
+    }
+
+    private SealedSecret<TAttributes, TProtected> GetSecret<TAttributes, TProtected>(ValidatedVaultDataSnapshot snapshot, VaultIdentifier vaultId, Guid secretId)
+        where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
+        where TProtected : IBinarySerializable<TProtected>
+    {
+        return LiveVaultData.FromSnapshot(snapshot).GetStoreOrDefault<TAttributes, TProtected>(vaultId.Name).Get(secretId);
+    }
+
     private ValidatedVaultDataSnapshot RemoveSecret(ValidatedVaultDataSnapshot input, VaultIdentifier vaultId, Guid secretId, ClientData client)
     {
         LiveVaultData live = LiveVaultData.FromSnapshot(input);

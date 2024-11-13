@@ -29,21 +29,7 @@ public class VaultClientEntry : IComparable<VaultClientEntry>, IComparable, IEqu
         EncryptedSharedKey = encryptedSharedKey;
         Authorizer = authorizer;
     }
-
-    public void Deconstruct(
-        out Guid clientId,
-        out string description,
-        out ReadOnlyMemory<byte> encryptionKey,
-        out ReadOnlyMemory<byte> signingKey,
-        out ReadOnlyMemory<byte> encryptedSharedKey)
-    {
-        clientId = ClientId;
-        description = Description;
-        encryptionKey = EncryptionKey;
-        signingKey = SigningKey;
-        encryptedSharedKey = EncryptedSharedKey;
-    }
-
+    
     public int CompareTo(VaultClientEntry? other)
     {
         if (ReferenceEquals(this, other)) return 0;
@@ -62,7 +48,7 @@ public class VaultClientEntry : IComparable<VaultClientEntry>, IComparable, IEqu
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return ClientId.Equals(other.ClientId) && Description == other.Description && EncryptionKey.Equals(other.EncryptionKey) && SigningKey.Equals(other.SigningKey);
+        return ClientId.Equals(other.ClientId) && Description == other.Description;
     }
 
     public override bool Equals(object? obj)
@@ -75,6 +61,6 @@ public class VaultClientEntry : IComparable<VaultClientEntry>, IComparable, IEqu
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(ClientId, Description, EncryptionKey, SigningKey);
+        return HashCode.Combine(ClientId, Description);
     }
 }
