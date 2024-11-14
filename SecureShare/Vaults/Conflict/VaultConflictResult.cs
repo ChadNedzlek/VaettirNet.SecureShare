@@ -4,12 +4,14 @@ namespace VaettirNet.SecureShare.Vaults.Conflict;
 
 public class VaultConflictResult
 {
-    public ValidatedVaultDataSnapshot BaseUnvalidatedVault { get; }
+    public ValidatedVaultDataSnapshot BaseVault { get; }
     public ImmutableList<VaultConflictItem> Items { get; }
     
-    public VaultConflictResult(ValidatedVaultDataSnapshot baseUnvalidatedVault, ImmutableList<VaultConflictItem> items)
+    public VaultConflictResult(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items)
     {
-        BaseUnvalidatedVault = baseUnvalidatedVault;
+        BaseVault = baseVault;
         Items = items;
     }
+
+    public PartialVaultConflictResolution GetResolver() => new(BaseVault, Items);
 }

@@ -1,63 +1,99 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
 
-public class VaultConflictResolution
+public class PartialVaultConflictResolution
 {
-    private VaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items)
+    private readonly ValidatedVaultDataSnapshot _baseVault;
+    private readonly ImmutableList<VaultConflictItem> _items;
+    private readonly ImmutableArray<VaultResolutionItem?> _resolutions;
+
+    public PartialVaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items)
     {
-        BaseVault = baseVault;
-        Items = items;
+        _baseVault = baseVault;
+        _items = items;
+        _resolutions = [..new VaultResolutionItem[items.Count]];
+    }
+    
+    private PartialVaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items, ImmutableArray<VaultResolutionItem?> resolutions)
+    {
+        _baseVault = baseVault;
+        _items = items;
+        _resolutions = resolutions;
     }
 
-    public ValidatedVaultDataSnapshot BaseVault { get; }
-    public ImmutableList<VaultConflictItem> Items { get; }
-
-    public class Builder
+    public PartialVaultConflictResolution Resolve(VaultConflictItem conflict, VaultResolutionItem resolution)
     {
-        private readonly ValidatedVaultDataSnapshot _baseVault;
-        private readonly ImmutableList<VaultConflictItem> _items;
-        private readonly VaultResolutionItem?[] _resolutions;
-
-        public Builder(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items)
-        {
-            _baseVault = baseVault;
-            _items = items;
-            _resolutions = new VaultResolutionItem[items.Count];
-        }
-
-        public Builder Resolve(VaultConflictItem conflict, VaultResolutionItem resolution)
-        {
-            _resolutions[_items.IndexOf(conflict)] = resolution;
-            return this;
-        }
-
-        public OneOf<ValidatedVaultDataSnapshot, VaultResolutionItem> Apply(VaultCryptographyAlgorithm algorithm, PrivateClientInfo signer, VaultResolutionItem? defaultResolution = null)
-        {
-            if (_resolutions.Any(r => r is null) && defaultResolution is null)
-            {
-                throw new InvalidOperationException("Not all conflicts are resolved");
-            }
-
-            LiveVaultData liveVault = LiveVaultData.FromSnapshot(_baseVault);
-
-            for (int i = 0; i < _resolutions.Length; i++)
-            {
-                VaultResolutionItem? resolution = _resolutions[i] ?? defaultResolution;
-                if (!_items[i].TryApplyTo(ref liveVault, resolution, algorithm))
-                {
-                    return resolution!;
-                }
-            }
-
-            return liveVault.GetSnapshot(new RefSigner(algorithm, signer));
-        }
+        return new PartialVaultConflictResolution(
+            _baseVault,
+            _items,
+            _resolutions.SetItem(_items.IndexOf(conflict), resolution));
     }
 
-    public static Builder Start(ValidatedVaultDataSnapshot baseUnvalidatedVault, ImmutableList<VaultConflictItem> items)
+    public PartialVaultConflictResolution WithAutoResolutions()
     {
-        return new(baseUnvalidatedVault, items);
+        var res = _resolutions.ToBuilder();
+        for (var i = 0; i < _items.Count; i++)
+        {
+            VaultConflictItem item = _items[i];
+            if (item.TryGetAutoResolution(out var r))
+            {
+                res[i] = r;
+            }
+        }
+
+        return new PartialVaultConflictResolution(
+            _baseVault,
+            _items,
+            res.ToImmutable()
+        );
+    }
+
+    public bool TryGetNextUnresolved([MaybeNullWhen(false)] out VaultConflictItem conflict)
+    {
+        for (var i = 0; i < _items.Count; i++)
+        {
+            if (_resolutions[i] == null)
+            {
+                conflict = _items[i];
+                return true;
+            }
+        }
+
+        conflict = null;
+        return false;
+    }
+
+    public Result<ValidatedVaultDataSnapshot, (VaultConflictItem conflict, VaultResolutionItem? resolution)> Apply(
+        VaultCryptographyAlgorithm algorithm,
+        PrivateClientInfo signer,
+        VaultResolutionItem? defaultResolution = null)
+    {
+        if (defaultResolution is null)
+        {
+            int i = _resolutions.IndexOf(null);
+            if (i >= 0)
+            {
+                return (_items[i], null);
+            }
+        }
+
+        LiveVaultData liveVault = LiveVaultData.FromSnapshot(_baseVault);
+
+        for (int i = 0; i < _resolutions.Length; i++)
+        {
+            VaultResolutionItem resolution = _resolutions[i] ?? defaultResolution;
+            if (!_items[i].TryApplyTo(ref liveVault, resolution, algorithm))
+            {
+                return (_items[i], resolution);
+            }
+        }
+
+        return liveVault.GetSnapshot(new RefSigner(algorithm, signer));
     }
 }

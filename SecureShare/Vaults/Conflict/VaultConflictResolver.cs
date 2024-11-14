@@ -37,7 +37,7 @@ public class VaultConflictResolver
 
     public bool TryAutoResolveConflicts(VaultConflictResult result, RefSigner signer, out ValidatedVaultDataSnapshot data)
     {
-        LiveVaultData liveVault = LiveVaultData.FromSnapshot(result.BaseUnvalidatedVault);
+        LiveVaultData liveVault = LiveVaultData.FromSnapshot(result.BaseVault);
         foreach (var item in result.Items)
         {
             if (!item.TryGetAutoResolution(out VaultResolutionItem? resolution))
@@ -195,8 +195,8 @@ public class VaultConflictResolver
                         new SecretConflictItem(
                             localVault.Id,
                             originalSecret,
-                            localEntry,
-                            remoteEntry
+                            remoteEntry,
+                            localEntry
                         )
                     );
                 }

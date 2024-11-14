@@ -172,8 +172,8 @@ internal class LinkCommand : RootCommand<RunState>
                         }
                     }
 
-                    VaultConflictResolution.Builder resolution = VaultConflictResolution.Start(state.LoadedSnapshot, conflictResult.Items);
-                    foreach (VaultConflictItem conflict in conflictResult.Items)
+                    PartialVaultConflictResolution resolution = conflictResult.GetResolver().WithAutoResolutions();
+                    while (resolution.TryGetNextUnresolved(out var conflict))
                     {
                         switch (conflict)
                         {

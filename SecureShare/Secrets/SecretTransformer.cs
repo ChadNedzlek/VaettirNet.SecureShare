@@ -92,9 +92,9 @@ public class SecretTransformer
         return enc.TryEncrypt(input, destination, out cb);
     }
 
-    private bool TryUnprotect(ReadOnlySpan<byte> input, int keyId, uint version, Span<byte> destination, out int cb)
+    private bool TryUnprotect(ReadOnlySpan<byte> input, int keyId, Span<byte> destination, out int cb)
     {
-        if (keyId != CurrentKeyId || version != Version)
+        if (keyId != CurrentKeyId)
             throw new NotSupportedException($"Expected version {Version} with key id {CurrentKeyId}");
 
         using Encryptor enc = GetAlgorithm();
@@ -115,7 +115,7 @@ public class SecretTransformer
     {
         using RentedSpan<byte> decryptedValue = SpanHelpers.GrowingSpan(
             stackalloc byte[100],
-            (Span<byte> s, out int cb) => TryUnprotect(secret.Protected.Span, secret.KeyId, secret.Version, s, out cb),
+            (Span<byte> s, out int cb) => TryUnprotect(secret.Protected.Span, secret.KeyId, s, out cb),
             VaultArrayPool.Pool);
 
         return new (secret.Id, secret.Attributes, TProtected.GetBinarySerializer().Deserialize(decryptedValue.Span));
