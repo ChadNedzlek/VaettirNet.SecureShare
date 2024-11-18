@@ -26,14 +26,14 @@ internal class RequestCommand : BaseCommand<RunState>
                 (Span<byte> span, out int cb) => serializer.TrySerialize(request, span, out cb),
                 ArrayPool<byte>.Shared
             );
-            
+
             Console.WriteLine(Convert.ToBase64String(bytes.Span));
 
             QrCodeWriter.WritePng(bytes.Span, @"C:\temp\request.png");
             return 0;
         }
     }
-    
+
     [Command("accept|a")]
     internal class AcceptCommand : ChildCommand<RunState, RequestCommand>
     {

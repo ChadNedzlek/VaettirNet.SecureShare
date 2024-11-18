@@ -27,7 +27,7 @@ public class PartialVaultConflictResolution
         _resolutions = resolutions;
     }
 
-    public PartialVaultConflictResolution Resolve(VaultConflictItem conflict, VaultResolutionItem resolution)
+    public PartialVaultConflictResolution WithResolution(VaultConflictItem conflict, VaultResolutionItem resolution)
     {
         return new PartialVaultConflictResolution(
             _baseVault,

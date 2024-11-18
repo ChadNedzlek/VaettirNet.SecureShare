@@ -23,19 +23,19 @@ internal class KeysCommand : BaseCommand<RunState>
             return 0;
         }
     }
-    
+
     [Command("load|l")]
     internal class LoadCommand : ChildCommand<RunState, KeysCommand>
     {
-        private string _path;
         private string _password;
+        private string _path;
 
         public override OptionSet GetOptions(RunState state)
         {
             return new OptionSet
             {
-                {"path=", "Path to load keys from", v => _path = v},
-                {"password|pw|p=", "Password, if required, to read keys", v => _password = v},
+                { "path=", "Path to load keys from", v => _path = v },
+                { "password|pw|p=", "Password, if required, to read keys", v => _password = v }
             };
         }
 
@@ -62,8 +62,8 @@ internal class KeysCommand : BaseCommand<RunState>
 
             state.VaultManager = null;
             state.LoadedSnapshot = default;
-            
-            byte[] bytes =  File.ReadAllBytes(_path);
+
+            byte[] bytes = File.ReadAllBytes(_path);
             Span<byte> unprotected = stackalloc byte[bytes.Length];
             ProtectedData.TryUnprotect(bytes, default, unprotected, DataProtectionScope.CurrentUser, out int cb);
             unprotected = unprotected[..cb];
@@ -82,18 +82,19 @@ internal class KeysCommand : BaseCommand<RunState>
             return 0;
         }
     }
+
     [Command("save|s")]
     internal class SaveCommand : ChildCommand<RunState, KeysCommand>
     {
-        private string _path;
         private string _password;
+        private string _path;
 
         public override OptionSet GetOptions(RunState state)
         {
             return new OptionSet
             {
-                {"path=", "Path to load keys from", v => _path = v},
-                {"password|pw|p=", "Password, if required, to read keys", v => _password = v},
+                { "path=", "Path to load keys from", v => _path = v },
+                { "password|pw|p=", "Password, if required, to read keys", v => _password = v }
             };
         }
 
@@ -117,7 +118,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 (Span<byte> span, out int cb) => serializer.TrySerialize(state.Keys, span, out cb),
                 ArrayPool<byte>.Shared
             );
-            
+
             using RentedSpan<byte> bytes = SpanHelpers.GrowingSpan(
                 stackalloc byte[unprotected.Span.Length * 2],
                 unprotected.Span,
@@ -127,7 +128,7 @@ internal class KeysCommand : BaseCommand<RunState>
             );
 
             Span<byte> output = bytes.Span;
-            
+
             if (_password != null)
             {
                 using Aes aes = Aes.Create();
@@ -146,5 +147,4 @@ internal class KeysCommand : BaseCommand<RunState>
             return 0;
         }
     }
-    
 }

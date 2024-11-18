@@ -186,10 +186,10 @@ internal class LinkCommand : RootCommand<RunState>
                                 switch (Resolve())
                                 {
                                     case 'l':
-                                        resolution.Resolve(conflict, VaultResolutionItem.AcceptLocal);
+                                        resolution.WithResolution(conflict, VaultResolutionItem.AcceptLocal);
                                         break;
                                     case 'r':
-                                        resolution.Resolve(conflict, VaultResolutionItem.AcceptRemote);
+                                        resolution.WithResolution(conflict, VaultResolutionItem.AcceptRemote);
                                         break;
                                     case 'a':
                                         _prompt.WriteWarning("Aborting resolve.");

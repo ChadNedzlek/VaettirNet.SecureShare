@@ -32,7 +32,7 @@ internal class VaultCommand : BaseCommand<RunState>
     [Command("list|ls|l")]
     internal class VaultsCommand : ChildCommand<RunState, VaultCommand>
     {
-        private CommandPrompt _prompt;
+        private readonly CommandPrompt _prompt;
 
         public VaultsCommand(CommandPrompt prompt)
         {
@@ -43,20 +43,15 @@ internal class VaultCommand : BaseCommand<RunState>
         {
             _prompt.WriteLine("Vaults:");
             if (state.LoadedSnapshot.Vaults?.IsEmpty ?? true)
-            {
                 _prompt.WriteLine("  <none>", ConsoleColor.DarkGray);
-            }
             else
-            {
                 foreach (UntypedVaultSnapshot vault in state.LoadedSnapshot.Vaults ?? [])
-                {
                     _prompt.WriteLine($"  {vault.Id.Name}");
-                }
-            }
+
             return 0;
         }
     }
-    
+
     [Command("load")]
     internal class LoadCommand : ChildCommand<RunState, VaultCommand>
     {
@@ -80,7 +75,7 @@ internal class VaultCommand : BaseCommand<RunState>
                 .WithSecret<LinkMetadata, LinkData>()
                 .Build()
                 .Deserialize(stream);
-            
+
 
             if (!signedSnapshot.TryValidate(state.Algorithm, out ValidatedVaultDataSnapshot snapshot))
             {
@@ -88,16 +83,13 @@ internal class VaultCommand : BaseCommand<RunState>
                 return 2;
             }
 
-            if (state.Keys != null)
-            {
-                state.VaultManager = VaultManager.Import(state.Algorithm, snapshot, state.Keys);
-            }
+            if (state.Keys != null) state.VaultManager = VaultManager.Import(state.Algorithm, snapshot, state.Keys);
 
             state.LoadedSnapshot = snapshot;
             return 0;
         }
     }
-    
+
     [Command("save")]
     internal class SaveCommand : ChildCommand<RunState, VaultCommand>
     {
@@ -118,7 +110,7 @@ internal class VaultCommand : BaseCommand<RunState>
             return 0;
         }
     }
-    
+
     [Command("select|s")]
     internal class SelectCommand : ChildCommand<RunState, VaultCommand>
     {

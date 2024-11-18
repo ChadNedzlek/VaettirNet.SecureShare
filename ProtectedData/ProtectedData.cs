@@ -118,14 +118,14 @@ public static class ProtectedData
                 try
                 {
                     bool success = protect
-                        ? Interop.Crypt32.CryptProtectData(in userDataBlob,
+                        ? Interop.Crypt32.CryptProtectData(ref userDataBlob,
                             null,
                             ref optionalEntropyBlob,
                             IntPtr.Zero,
                             IntPtr.Zero,
                             flags,
                             out outputBlob)
-                        : Interop.Crypt32.CryptUnprotectData(in userDataBlob,
+                        : Interop.Crypt32.CryptUnprotectData(ref userDataBlob,
                             IntPtr.Zero,
                             ref optionalEntropyBlob,
                             IntPtr.Zero,

@@ -14,53 +14,57 @@ namespace VaettirNet.SecureShare.Vaults;
 public class UnvalidatedVaultDataSnapshot : BinarySerializable<UnvalidatedVaultDataSnapshot>, ISignable
 {
     [ProtoMember(1)]
-    public ImmutableSortedSet<VaultClientEntry>? Clients { get; private set; }
+    private ImmutableSortedSet<VaultClientEntry>? _clients;
+    public ImmutableSortedSet<VaultClientEntry> Clients => _clients ?? [];
 
     [ProtoMember(2)]
-    public ImmutableSortedSet<BlockedVaultClientEntry>? BlockedClients { get; private set; }
+    private ImmutableSortedSet<BlockedVaultClientEntry>? _blockedClients;
+    public ImmutableSortedSet<BlockedVaultClientEntry> BlockedClients => _blockedClients ?? ImmutableSortedSet<BlockedVaultClientEntry>.Empty;
 
     [ProtoMember(3)]
-    public ImmutableList<Signed<ClientModificationRecord>>? ClientModifications { get; private set; }
+    private ImmutableList<Signed<ClientModificationRecord>>? _clientModifications;
+    public ImmutableList<Signed<ClientModificationRecord>> ClientModifications => _clientModifications ?? ImmutableList<Signed<ClientModificationRecord>>.Empty;
 
     [ProtoMember(4)]
-    public ImmutableSortedSet<UntypedVaultSnapshot>? Vaults { get; private set; }
-    
+    private ImmutableSortedSet<UntypedVaultSnapshot>? _vaults;
+    public ImmutableSortedSet<UntypedVaultSnapshot> Vaults => _vaults ?? ImmutableSortedSet<UntypedVaultSnapshot>.Empty;
+
     [ProtoMember(5)]
     public uint Version { get; private set; }
 
     public UnvalidatedVaultDataSnapshot(
-        IEnumerable<VaultClientEntry>? clients,
-        IEnumerable<BlockedVaultClientEntry>? blockedClients,
-        IEnumerable<Signed<ClientModificationRecord>>? clientModifications,
-        IEnumerable<UntypedVaultSnapshot>? vaults,
+        IEnumerable<VaultClientEntry> clients,
+        IEnumerable<BlockedVaultClientEntry> blockedClients,
+        IEnumerable<Signed<ClientModificationRecord>> clientModifications,
+        IEnumerable<UntypedVaultSnapshot> vaults,
         uint version = 1
     )
     {
         Version = version;
-        Clients = clients?.ToImmutableSortedSet();
-        BlockedClients = blockedClients?.ToImmutableSortedSet();
-        ClientModifications = clientModifications?.ToImmutableList();
-        Vaults = vaults?.ToImmutableSortedSet();
+        _clients = clients.ToImmutableSortedSet();
+        _blockedClients = blockedClients.ToImmutableSortedSet();
+        _clientModifications = clientModifications.ToImmutableList();
+        _vaults = vaults.ToImmutableSortedSet();
     }
 
     public bool TryGetDataToSign(Span<byte> destination, out int cb)
     {
         using IncrementalHash hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
-        AppendInt(hasher, Clients?.Count ?? 0);
+        AppendInt(hasher, Clients.Count);
         Span<byte> buffer = stackalloc byte[1000];
-        foreach (VaultClientEntry? client in Clients ?? [])
+        foreach (VaultClientEntry client in Clients)
         {
             AppendGuid(hasher, client.ClientId, buffer);
         }
         
-        AppendInt(hasher, BlockedClients?.Count ?? 0);
-        foreach (BlockedVaultClientEntry? client in BlockedClients ?? [])
+        AppendInt(hasher, BlockedClients.Count);
+        foreach (BlockedVaultClientEntry client in BlockedClients)
         {
             AppendGuid(hasher, client.ClientId, buffer);
         }
 
-        AppendInt(hasher, Vaults?.Count ?? 0);
-        foreach (UntypedVaultSnapshot vault in Vaults ?? [])
+        AppendInt(hasher, Vaults.Count);
+        foreach (UntypedVaultSnapshot vault in Vaults)
         {
             AppendString(hasher, vault.Id.Name, buffer);
             AppendString(hasher, vault.Id.AttributeTypeName, buffer);

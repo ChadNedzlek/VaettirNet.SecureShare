@@ -19,10 +19,7 @@ internal class SecretsCommand : RootCommand<RunState>
             Console.WriteLine("Secrets: ");
             SecretTransformer transformer = null;
             bool decrypt = _decrypt;
-            if (decrypt)
-            {
-                transformer = state.VaultManager.GetTransformer(state.Keys);
-            }
+            if (decrypt) transformer = state.VaultManager.GetTransformer(state.Keys);
 
             bool any = false;
             foreach (SealedSecret<LinkMetadata, LinkData> secret in state.Store.GetSecrets())
@@ -47,10 +44,7 @@ internal class SecretsCommand : RootCommand<RunState>
                 }
             }
 
-            if (!any)
-            {
-                Console.WriteLine("  <none>");
-            }
+            if (!any) Console.WriteLine("  <none>");
 
             Console.WriteLine("Removed: ");
             any = false;
@@ -60,17 +54,14 @@ internal class SecretsCommand : RootCommand<RunState>
                 Console.WriteLine($"  id:{secret.Id} ver:{secret.Version}");
             }
 
-            if (!any)
-            {
-                Console.WriteLine("  <none>");
-            }
+            if (!any) Console.WriteLine("  <none>");
 
             return 0;
         }
 
         public override OptionSet GetOptions(RunState state)
         {
-            return new OptionSet { { "decrypt|d", "Include decrypted values", v => _decrypt = v is not null }, };
+            return new OptionSet { { "decrypt|d", "Include decrypted values", v => _decrypt = v is not null } };
         }
     }
 

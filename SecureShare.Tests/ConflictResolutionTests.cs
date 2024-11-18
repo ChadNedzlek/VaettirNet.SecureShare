@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using FluentAssertions;
+using FluentAssertions.Execution;
+using FluentAssertions.Primitives;
 using NUnit.Framework.Constraints;
 using ProtoBuf;
 using VaettirNet.SecureShare;
@@ -170,26 +172,6 @@ public class ConflictResolutionTests
         localProtected.Should().Be("Local Prot");
     }
 
-    public VaultConflictResult RunConflict(
-        Func<ValidatedVaultDataSnapshot, ValidatedVaultDataSnapshot> modifyRemoteVault,
-        Func<ValidatedVaultDataSnapshot, ValidatedVaultDataSnapshot> modifyLocalVault)
-    {
-        ValidatedVaultDataSnapshot original = BuildBasicVault();
-        ValidatedVaultDataSnapshot remoteVault = modifyRemoteVault?.Invoke(original) ?? original;
-        ValidatedVaultDataSnapshot localVault = modifyLocalVault?.Invoke(original) ?? original;
-        return s_resolver.Resolve(original, remoteVault, localVault);
-    }
-    public VaultConflictResult RunSecretConflict(
-        Func<Guid, ValidatedVaultDataSnapshot, ValidatedVaultDataSnapshot> modifyRemoteVault,
-        Func<Guid, ValidatedVaultDataSnapshot, ValidatedVaultDataSnapshot> modifyLocalVault)
-    {
-        ValidatedVaultDataSnapshot original = BuildBasicVault();
-        var secret = original.Vaults.First().Secrets.First();
-        ValidatedVaultDataSnapshot remoteVault = modifyRemoteVault?.Invoke(secret.Id, original) ?? original;
-        ValidatedVaultDataSnapshot localVault = modifyLocalVault?.Invoke(secret.Id, original) ?? original;
-        return s_resolver.Resolve(original, remoteVault, localVault);
-    }
-
     [Test]
     public void ConflictingModificationsReportsConflict()
     {
@@ -260,7 +242,7 @@ public class ConflictResolutionTests
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
         var resolver = conflict.GetResolver();
         resolver.TryGetNextUnresolved(out VaultConflictItem unresolved).Should().BeTrue();
-        var localResolution = resolver.Resolve(unresolved!, VaultResolutionItem.AcceptLocal);
+        var localResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptLocal);
         localResolution.TryGetNextUnresolved(out _).Should().BeFalse();
         localResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
         (string attribute, string prot) = GetSecretValues(resolvedVault, id);
@@ -309,12 +291,62 @@ public class ConflictResolutionTests
         var resolver = conflict.GetResolver();
         resolver.TryGetNextUnresolved(out VaultConflictItem unresolved).Should().BeTrue();
         
-        var remoteResolution = resolver.Resolve(unresolved!, VaultResolutionItem.AcceptRemote);
+        var remoteResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptRemote);
         remoteResolution.TryGetNextUnresolved(out _).Should().BeFalse();
         remoteResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
         var (attribute, prot) = GetSecretValues(resolvedVault, id);
         attribute.Should().Be("Remote Secret");
         prot.Should().Be("Remote Prot");
+    }
+
+    [Test]
+    public void DifferentResolutionsResolvedTogether()
+    {
+        ValidatedVaultDataSnapshot original = BuildBasicVault();
+        
+        Guid id1 = original.Vaults.SelectMany(v => v.Secrets)
+            .OfType<SealedSecret<SecretAttributes, SecretProtectedValue>>()
+            .First(s => s.Attributes.Value == "Value 1")
+            .Id;
+
+        Guid id2 = original.Vaults.SelectMany(v => v.Secrets)
+            .OfType<SealedSecret<SecretAttributes, SecretProtectedValue>>()
+            .First(s => s.Attributes.Value == "Value 2")
+            .Id;
+
+        ValidatedVaultDataSnapshot modifiedRemoteVault = original;
+        ValidatedVaultDataSnapshot modifiedLocalVault = original;
+        UpdateSecret(ref modifiedRemoteVault, id1, "Remote Secret 1", "Remote Prot 1", s_trusted);
+        UpdateSecret(ref modifiedLocalVault, id1, "Local Secret 1", "Local Prot 1", s_self);
+        UpdateSecret(ref modifiedRemoteVault, id2, "Remote Secret 2", "Remote Prot 2", s_trusted);
+        UpdateSecret(ref modifiedLocalVault, id2, "Local Secret 2", "Local Prot 2", s_self);
+        
+        VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
+        PartialVaultConflictResolution resolver = conflict.GetResolver();
+        int iterationCount = 0;
+        while (resolver.TryGetNextUnresolved(out var unresolved))
+        {
+            (iterationCount++).Should().BeLessThanOrEqualTo(2, because: "should only have two conflicts that are resolved");
+            SecretConflictItem secretConflict = unresolved.Should().BeOfType<SecretConflictItem>().Subject;
+            secretConflict.BaseEntry.Id.Should().BeOneOf(id1, id2);
+            if (secretConflict.BaseEntry.Id == id1)
+            {
+                resolver = resolver.WithResolution(unresolved, VaultResolutionItem.AcceptLocal);
+            }
+            else if (secretConflict.BaseEntry.Id == id2)
+            {
+                resolver = resolver.WithResolution(unresolved, VaultResolutionItem.AcceptRemote);
+            }
+        }
+
+        resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
+        var (attribute, prot) = GetSecretValues(resolvedVault, id1);
+        attribute.Should().Be("Local Secret 1");
+        prot.Should().Be("Local Prot 1");
+        (attribute, prot) = GetSecretValues(resolvedVault, id2);
+        attribute.Should().Be("Remote Secret 2");
+        prot.Should().Be("Remote Prot 2");
+        
     }
 
     private Guid AddSecret(
@@ -365,8 +397,14 @@ public class ConflictResolutionTests
         where TProtected : IBinarySerializable<TProtected>
         => UpdateSecret(ref input, VaultIdentifier.Create<TAttribute, TProtected>("First Vault"), id, attributeValue, protectedValue, client);
 
-    private Guid UpdateSecret<TAttribute, TProtected>(ref ValidatedVaultDataSnapshot input, VaultIdentifier vaultId, 
-        Guid secretId, TAttribute attributeValue, TProtected protectedValue, ClientData client)
+    private void UpdateSecret<TAttribute, TProtected>(
+        ref ValidatedVaultDataSnapshot input,
+        VaultIdentifier vaultId,
+        Guid secretId,
+        TAttribute attributeValue,
+        TProtected protectedValue,
+        ClientData client
+    )
         where TAttribute : IBinarySerializable<TAttribute>, IJsonSerializable<TAttribute>
         where TProtected : IBinarySerializable<TProtected>
     {
@@ -375,7 +413,6 @@ public class ConflictResolutionTests
         store.GetWriter(s_transformer).Update(secretId, attributeValue, protectedValue);
         live.UpdateVault(store.ToSnapshot());
         input = live.GetSnapshot(new RefSigner(s_algorithm, client.PrivateInfo));
-        return secretId;
     }
 
     private (string attr, string prot) GetSecretValues(ValidatedVaultDataSnapshot snapshot, Guid secretId)
@@ -486,5 +523,20 @@ public class ConflictResolutionTests
     {
         [ProtoMember(1)]
         public string Value { get; set; }
+    }
+}
+
+public static class AssertionExtensions
+{
+    public static void BeOneOf(this GuidAssertions assertions, Guid[] expectations, string because, params object[] args) {
+        Execute.Assertion
+            .ForCondition(expectations.Any(x => x == assertions.Subject))
+            .BecauseOf(because, args)
+            .FailWith("Expected {context:string} to be any of {0}{reason}", expectations);
+    }
+    public static void BeOneOf(this GuidAssertions assertions, params Guid[] expectations) {
+        Execute.Assertion
+            .ForCondition(expectations.Any(x => x == assertions.Subject))
+            .FailWith("Expected {context:string} to be any of {0}{reason}", expectations);
     }
 }

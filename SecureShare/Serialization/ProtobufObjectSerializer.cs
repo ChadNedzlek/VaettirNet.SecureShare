@@ -1,10 +1,6 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using ProtoBuf;
 using ProtoBuf.Meta;
 
 namespace VaettirNet.SecureShare.Serialization;
@@ -12,17 +8,13 @@ namespace VaettirNet.SecureShare.Serialization;
 public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
 {
     private readonly RuntimeTypeModel _typeModel;
-    private static ProtobufObjectSerializer<T> Instance { get; } = new ();
 
     private ProtobufObjectSerializer(params ReadOnlySpan<Type> additionalTypes)
     {
         _typeModel = RuntimeTypeModel.Create();
         _typeModel.Add<T>();
         _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
-        foreach (Type? type in additionalTypes)
-        {
-            _typeModel.Add(type);
-        }
+        foreach (Type? type in additionalTypes) _typeModel.Add(type);
     }
 
     private ProtobufObjectSerializer(Action<RuntimeTypeModel> customize)
@@ -33,44 +25,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         customize(_typeModel);
     }
 
-    private static DateTimeOffset TicksToDateTimeOffsetUtc(long t)
-    {
-        return new DateTimeOffset(t, TimeSpan.Zero);
-    }
-
-    private static long DateTimeOffsetToTicksUtc(DateTimeOffset d)
-    {
-        return d.UtcTicks;
-    }
-
-    public static ProtobufObjectSerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
-    {
-        ValidateType(typeof(T));
-        if (additionalTypes.IsEmpty)
-            return Instance;
-
-        foreach (Type? type in additionalTypes)
-        {
-            ValidateType(type);
-        }
-
-        return new ProtobufObjectSerializer<T>(additionalTypes);
-    }
-
-    public static ProtobufObjectSerializer<T> Create(Action<RuntimeTypeModel> customize)
-    {
-        ValidateType(typeof(T));
-        return new ProtobufObjectSerializer<T>(customize);
-    }
-
-    private static void ValidateType(Type type)
-    {
-        IList<CustomAttributeData> attrData = type.GetCustomAttributesData();
-        if (attrData.All(a => a.AttributeType != typeof(ProtoContractAttribute)))
-        {
-            throw new ArgumentException($"Type {type.Name} must have [ProtoContract]");
-        }
-    }
+    private static ProtobufObjectSerializer<T> Instance { get; } = new();
 
     public bool TrySerialize(T value, Span<byte> destination, out int bytesWritten)
     {
@@ -78,7 +33,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         {
             fixed (byte* buffer = &destination.GetPinnableReference())
             {
-                FixedSizeUnmanagedMemoryStream s = new(new(buffer, 0, destination.Length, FileAccess.Write));
+                FixedSizeUnmanagedMemoryStream s = new(new UnmanagedMemoryStream(buffer, 0, destination.Length, FileAccess.Write));
                 _typeModel.Serialize(s, value);
                 if (s.IsExhausted)
                 {
@@ -93,11 +48,6 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         }
     }
 
-    public void Serialize(Stream stream, T value)
-    {
-        _typeModel.Serialize(stream, value);
-    }
-
     public T Deserialize(ReadOnlySpan<byte> source)
     {
         unsafe
@@ -105,9 +55,41 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
             fixed (byte* buffer = &source.GetPinnableReference())
             {
                 using PointerMemoryManager mm = new(buffer, source.Length);
-                return (T)_typeModel.Deserialize(mm.Memory, type:typeof(T));
+                return (T)_typeModel.Deserialize(mm.Memory, type: typeof(T));
             }
         }
+    }
+
+    private static DateTimeOffset TicksToDateTimeOffsetUtc(long t)
+    {
+        return new DateTimeOffset(t, TimeSpan.Zero);
+    }
+
+    private static long DateTimeOffsetToTicksUtc(DateTimeOffset d)
+    {
+        return d.UtcTicks;
+    }
+
+    public static ProtobufObjectSerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
+    {
+        if (additionalTypes.IsEmpty)
+            return Instance;
+
+        foreach (Type? type in additionalTypes)
+        {
+        }
+
+        return new ProtobufObjectSerializer<T>(additionalTypes);
+    }
+
+    public static ProtobufObjectSerializer<T> Create(Action<RuntimeTypeModel> customize)
+    {
+        return new ProtobufObjectSerializer<T>(customize);
+    }
+
+    public void Serialize(Stream stream, T value)
+    {
+        _typeModel.Serialize(stream, value);
     }
 
     public T Deserialize(Stream source)
@@ -117,8 +99,8 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
 
     private sealed unsafe class PointerMemoryManager : MemoryManager<byte>
     {
-        private readonly void* _pointer;
         private readonly int _length;
+        private readonly void* _pointer;
 
         internal PointerMemoryManager(void* pointer, int length)
         {
