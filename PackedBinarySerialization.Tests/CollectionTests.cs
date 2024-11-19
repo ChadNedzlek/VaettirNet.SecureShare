@@ -26,6 +26,32 @@ public class CollectionTests
     
     [TestCase(true)]
     [TestCase(false)]
+    public void NullArrayRoundTrip(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        buffer.ResetWrittenCount();
+        s.Serialize<int[]>(buffer, null, options);
+        var roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
+        roundTrippedValue.Should().BeNull();
+    }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void EmptyArrayRoundTrip(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        buffer.ResetWrittenCount();
+        s.Serialize<int[]>(buffer, [], options);
+        var roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
+        roundTrippedValue.Should().BeEmpty();
+    }
+    
+    [TestCase(true)]
+    [TestCase(false)]
     public static void MemoryRoundTrip(bool packed)
     {
         PackedBinarySerializer s = new();

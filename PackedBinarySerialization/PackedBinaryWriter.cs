@@ -139,11 +139,6 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     private int WriteRefValue<T>(object value, PackedBinarySerializationContext ctx)
     {
-        if (value == null)
-        {
-            return WriteByte(0, ctx);
-        }
-        
         if (TryWriteArray<T>(value, ctx, out int written)) return written;
         
         if (TryWriteEnumerable<T>(value, ctx, out written)) return written;

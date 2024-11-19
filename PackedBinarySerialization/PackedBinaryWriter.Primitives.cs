@@ -9,9 +9,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     {
         if (value == null)
         {
-            _writer.GetSpan(1)[0] = 0;
-            _writer.Advance(1);
-            return 1;
+            return WriteInt32(-1, ctx with { UsePackedIntegers = true });
         }
 
         Encoding encoding = ctx.Encoding ?? Encoding.UTF8;

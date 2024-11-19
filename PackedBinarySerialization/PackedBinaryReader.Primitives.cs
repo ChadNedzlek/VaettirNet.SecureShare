@@ -165,7 +165,7 @@ public ref partial struct PackedBinaryReader<TReader>
     {
         Encoding e = ctx.Encoding ?? Encoding.UTF8;
         int len = ReadInt32(ctx with { UsePackedIntegers = true });
-        if (len == 0)
+        if (len == -1)
             return null;
 
         ReadOnlySpan<byte> span = _reader.GetSpan(len);

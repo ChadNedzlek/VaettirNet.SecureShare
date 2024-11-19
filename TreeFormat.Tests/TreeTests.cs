@@ -31,29 +31,6 @@ public class TreeTests
         s.Serialize(w, new int[] { 1, 2, 3, 400 }, options);
         var t = Convert.ToHexString(w.WrittenSpan);
         var x = s.Deserialize<ReadOnlyMemory<int>>(w.WrittenSpan, options);
-        t.Should().Be("");
-    }
-
-    [Test]
-    public void Test()
-    {
-        DynamicMethod getValue = new("Test_GetValue", typeof(int), [typeof(TestReflectionClass)]);
-        var il = getValue.GetILGenerator();
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldfld, typeof(TestReflectionClass).GetField("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-        il.Emit(OpCodes.Ret);
-        var getDel = getValue.CreateDelegate<Func<TestReflectionClass, int>>();
-        DynamicMethod setValue = new("Test_SetValue", typeof(void), [typeof(TestReflectionClass), typeof(int)]);
-        il = setValue.GetILGenerator();
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldarg_1);
-        il.Emit(OpCodes.Stfld, typeof(TestReflectionClass).GetField("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-        il.Emit(OpCodes.Ret);
-        var setDel = setValue.CreateDelegate<Action<TestReflectionClass, int>>();
-        TestReflectionClass t = new TestReflectionClass { Value = 789 };
-        var x = getDel(t);
-        setDel(t, 999);
-        var y = getDel(t);
     }
 }
 

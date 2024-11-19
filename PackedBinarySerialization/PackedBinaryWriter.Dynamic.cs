@@ -1,10 +1,8 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
 using System.Threading;
 using VaettirNet.PackedBinarySerialization.Attributes;
 
@@ -12,11 +10,18 @@ namespace VaettirNet.PackedBinarySerialization;
 
 public ref partial struct PackedBinaryWriter<TWriter>
 {
-    public bool TryWriteWithMetadata<T>(object value, PackedBinarySerializationContext ctx, out int written)
+    public bool TryWriteWithMetadata<T>(object? value, PackedBinarySerializationContext ctx, out int written)
     {
         if (typeof(T).GetCustomAttribute<PackedBinarySerializableAttribute>() is { } attr)
         {
-            written = WriteWithMetadataCore<T>((T)value, ctx, attr);
+            if (value is null)
+            {
+                written = WriteBool(false, ctx);
+                return true;
+            }
+            
+            written = WriteBool(true, ctx);
+            written += WriteWithMetadataCore<T>((T)value, ctx, attr);
             return true;
         }
 

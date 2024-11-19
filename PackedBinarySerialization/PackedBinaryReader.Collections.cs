@@ -80,15 +80,11 @@ public ref partial struct PackedBinaryReader<TReader>
             {
                 l.Add(Read<T>(ctx.Descend()));
             }
-
-            if (l.Count == 0)
-                return null;
-
             return l.ToArray();
         }
 
         int len = ReadInt32(new PackedBinarySerializationContext { UsePackedIntegers = true });
-        if (len == 0)
+        if (len == -1)
             return null;
         
         T[] arr = new T[len];
@@ -134,18 +130,13 @@ public ref partial struct PackedBinaryReader<TReader>
             {
                 l.Add(Read<T>(ctx.Descend()));
             }
-
-            if (l.Count == 0)
-                return null;
-
             return l;
         }
 
         {
             int len = ReadInt32(new PackedBinarySerializationContext { UsePackedIntegers = true });
-            if (len == 0)
+            if (len == -1)
                 return null;
-
 
             List<T> l = new(len);
             for (int i = 0; i < len; i++)

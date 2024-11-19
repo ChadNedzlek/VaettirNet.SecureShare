@@ -106,9 +106,9 @@ public ref partial struct PackedBinaryWriter<TWriter>
         }
         else
         {
-            if (value is null || value.Length == 0)
+            if (value is null)
             {
-                return WriteInt32(0, ctx with {UsePackedIntegers = true});
+                return WriteInt32(-1, ctx with {UsePackedIntegers = true});
             }
             
             int written = WriteInt32(value.Length, ctx with { UsePackedIntegers = true });
@@ -150,7 +150,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         {
             if (value == null)
             {
-                return WriteInt32(0, ctx with { UsePackedIntegers = true });
+                return WriteInt32(-1, ctx with { UsePackedIntegers = true });
             }
             
             var array = value.ToArray();
