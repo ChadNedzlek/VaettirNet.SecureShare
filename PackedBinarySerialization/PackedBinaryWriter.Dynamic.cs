@@ -1,7 +1,9 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading;
 using VaettirNet.PackedBinarySerialization.Attributes;
@@ -14,7 +16,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     {
         if (typeof(T).GetCustomAttribute<PackedBinarySerializableAttribute>() is { } attr)
         {
-            written = WriteWithMetadataCore(value, ctx, attr);
+            written = WriteWithMetadataCore<T>((T)value, ctx, attr);
             return true;
         }
 
@@ -35,37 +37,122 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return GetMetadataWriteDelegate<T>(attr).Invoke(ref this, value, ctx);
     }
 
+    private void WriteValue<T>(ref PackedBinaryWriter<TWriter> writer, T value, ref int written, PackedBinarySerializationContext ctx)
+    {
+        written += writer.Write(value, ctx);
+    }
+
+    private static Type? GetMemberType(MemberInfo member) => member switch {
+        FieldInfo fieldInfo => fieldInfo.FieldType,
+        PropertyInfo propertyInfo => propertyInfo.PropertyType,
+        _ => null,
+    };
+
+    private static Func<TObj, TMember>? GetMemberAccess<TObj, TMember>(MemberInfo member)
+    {
+        return member switch
+        {
+            FieldInfo f => BuildFieldGetter(f),
+            PropertyInfo p => p.GetGetMethod(true)!.CreateDelegate<Func<TObj, TMember>>(),
+            _ => null,
+        };
+
+        Func<TObj, TMember> BuildFieldGetter(FieldInfo fieldInfo)
+        {
+            DynamicMethod getter = new DynamicMethod($"{typeof(TObj).Name}_Get_{fieldInfo.Name}", typeof(TMember), [typeof(TObj)]);
+            ILGenerator il = getter.GetILGenerator();
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldfld, fieldInfo);
+            il.Emit(OpCodes.Ret);
+            return getter.CreateDelegate<Func<TObj, TMember>>();
+        }
+    }
+
+    private static void WriteMemberStatic<TObj, TMember>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TObj value,
+        Delegate writeCallback,
+        PackedBinarySerializationContext ctx,
+        ref int written
+    )
+    {
+        Func<TObj, TMember> typedCallback = (Func<TObj, TMember>)writeCallback;
+        written += writer.Write(typedCallback(value), ctx);
+    }
+
+    private delegate void WriteMemberStaticDelegate<in TObj>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TObj value,
+        PackedBinarySerializationContext ctx,
+        ref int written
+    );
+    
+    private delegate void WriteMemberStaticCallbackDelegate<in TObj>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TObj value,
+        Delegate getter,
+        PackedBinarySerializationContext ctx,
+        ref int written
+    );
+    
+    private static WriteMemberStaticDelegate<TObj>? BuildWriteMember<TObj>(MemberInfo member)
+    {
+        if (GetMemberType(member) is not { } memberType)
+        {
+            return null;
+        }
+
+        var method = typeof(PackedBinaryWriter<TWriter>).GetMethod(nameof(BuildWriteMemberTyped), BindingFlags.Static | BindingFlags.NonPublic);
+        return method.MakeGenericMethod(typeof(TObj), memberType)
+            .CreateDelegate<Func<MemberInfo, WriteMemberStaticDelegate<TObj>>>()
+            .Invoke(member);
+    }
+
+    private static WriteMemberStaticDelegate<TObj>? BuildWriteMemberTyped<TObj, TMember>(MemberInfo member)
+    {
+        Func<TObj, TMember>? access = GetMemberAccess<TObj, TMember>(member);
+        if (access == null)
+            return null;
+        var method = typeof(PackedBinaryWriter<TWriter>).GetMethod(nameof(WriteMemberStatic), BindingFlags.Static | BindingFlags.NonPublic);
+        var makeIt = method!.MakeGenericMethod(typeof(TObj), typeof(TMember)).CreateDelegate<WriteMemberStaticCallbackDelegate<TObj>>();
+        return WriteMember;
+
+        void WriteMember(ref PackedBinaryWriter<TWriter> writer, TObj value, PackedBinarySerializationContext ctx, ref int written)
+        {
+            makeIt(ref writer, value, access, ctx, ref written);
+        }
+    }
+
     private WriteMetadataDelegate<T> GetMetadataWriteDelegate<T>(PackedBinarySerializableAttribute attr)
     {
-        s_reflectionLock.EnterReadLock();
-        try
+        WriteMemberStaticDelegate<T> build = null;
+        var targetMembers = typeof(T).GetMembers(
+            BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
+        )
+        .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
+        if (!attr.SequentialMembers)
         {
-            if (s_reflectionCache.TryGetValue((_serializer.GetType(), typeof(T)), out var (revision, writer))
-            {
-                return (WriteMetadataDelegate<T>)writer;
-            }
+            targetMembers = targetMembers
+                .Select(member => (member, attr: member.GetCustomAttribute<PackedBinaryMemberAttribute>()))
+                .Where(x => x.attr is not null)
+                .OrderBy(x => x.attr!.Order)
+                .Select(x => x.member);
         }
-        finally
+
+        foreach (MemberInfo member in targetMembers)
         {
-            s_reflectionLock.ExitReadLock();
+            if (BuildWriteMember<T>(member) is { } callback)
+            {
+                build += callback;
+            }
         }
         
-        s_reflectionLock.EnterWriteLock();
-        try
+        return delegate(ref PackedBinaryWriter<TWriter> writer, T value, PackedBinarySerializationContext ctx)
         {
-            if (s_reflectionCache.TryGetValue(typeof(T), out var writer))
-            {
-                return (WriteMetadataDelegate<T>)writer;
-            }
-
-            WriteMetadataDelegate<T> typed = BuildMetadataWriteDelegate<T>(attr);
-            s_reflectionCache.Add(typeof(T), typed);
-            return typed;
-        }
-        finally
-        {
-            s_reflectionLock.ExitWriteLock();
-        }
+            int written = 0;
+            build?.Invoke(ref writer, value, ctx, ref written);
+            return written;
+        };
     }
 
     private WriteMetadataDelegate<T> BuildMetadataWriteDelegate<T>(PackedBinarySerializableAttribute attr)

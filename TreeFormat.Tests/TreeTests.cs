@@ -1,6 +1,10 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
@@ -29,4 +33,31 @@ public class TreeTests
         var x = s.Deserialize<ReadOnlyMemory<int>>(w.WrittenSpan, options);
         t.Should().Be("");
     }
+
+    [Test]
+    public void Test()
+    {
+        DynamicMethod getValue = new("Test_GetValue", typeof(int), [typeof(TestReflectionClass)]);
+        var il = getValue.GetILGenerator();
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldfld, typeof(TestReflectionClass).GetField("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+        il.Emit(OpCodes.Ret);
+        var getDel = getValue.CreateDelegate<Func<TestReflectionClass, int>>();
+        DynamicMethod setValue = new("Test_SetValue", typeof(void), [typeof(TestReflectionClass), typeof(int)]);
+        il = setValue.GetILGenerator();
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Stfld, typeof(TestReflectionClass).GetField("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+        il.Emit(OpCodes.Ret);
+        var setDel = setValue.CreateDelegate<Action<TestReflectionClass, int>>();
+        TestReflectionClass t = new TestReflectionClass { Value = 789 };
+        var x = getDel(t);
+        setDel(t, 999);
+        var y = getDel(t);
+    }
+}
+
+public class TestReflectionClass
+{
+    public int Value;
 }

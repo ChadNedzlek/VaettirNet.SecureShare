@@ -24,6 +24,9 @@
       <Compile Update="PackedBinaryReader.ReflectionDelegate.cs">
         <DependentUpon>PackedBinaryReader.cs</DependentUpon>
       </Compile>
+      <Compile Update="PackedBinaryWriter.Dynamic.cs">
+        <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>
