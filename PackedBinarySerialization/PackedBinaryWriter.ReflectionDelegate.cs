@@ -8,10 +8,10 @@ namespace VaettirNet.PackedBinarySerialization;
 
 public ref partial struct PackedBinaryWriter<TWriter>
 {
+    public delegate int WriteDelegate<in TInput>(scoped ref PackedBinaryWriter<TWriter> writer, TInput input, PackedBinarySerializationContext ctx);
+    
     private class ReflectionDelegate
     {
-        public delegate int WriteDelegate<in TInput>(scoped ref PackedBinaryWriter<TWriter> writer, TInput input, PackedBinarySerializationContext ctx);
-        
         private readonly string _name;
         private readonly ReaderWriterLockSlim _lock = new();
         private readonly Dictionary<Type, Delegate> _serializers = [];

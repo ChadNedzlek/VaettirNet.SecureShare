@@ -14,16 +14,22 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
-        s.Serialize(buffer, new WeirdThing{IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222]});
+        s.Serialize(buffer, new SubWeirdThing{IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222]});
     }
 
     [PackedBinarySerializable(SequentialMembers = true)]
-    [StructLayout(LayoutKind.Sequential)]
+    [PackedBinaryIncludeType(0x333, typeof(SubWeirdThing))]
     private class WeirdThing
     {
         public int IntField;
         public int SecondField;
         public int[] ArrayProperty { get; set; }
         public int[] SecondArrayProperty { get; set; }
+    }
+    
+    [PackedBinarySerializable(SequentialMembers = true)]
+    private class SubWeirdThing : WeirdThing
+    {
+        public int SubField;
     }
 }
