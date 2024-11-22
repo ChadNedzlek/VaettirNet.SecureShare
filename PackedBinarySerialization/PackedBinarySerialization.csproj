@@ -27,6 +27,9 @@
       <Compile Update="PackedBinaryWriter.Dynamic.cs">
         <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
       </Compile>
+      <Compile Update="PackedBinaryReader.Dynamic.cs">
+        <DependentUpon>PackedBinaryReader.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

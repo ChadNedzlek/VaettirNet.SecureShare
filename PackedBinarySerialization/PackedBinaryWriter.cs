@@ -1,12 +1,8 @@
 using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.PackedBinarySerialization;
 
@@ -139,17 +135,12 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     private int WriteRefValue<T>(object value, PackedBinarySerializationContext ctx)
     {
-        if (TryWriteArray<T>(value, ctx, out int written)) return written;
+        ref T refT = ref Unsafe.As<object,T>(ref value);
         
-        if (TryWriteEnumerable<T>(value, ctx, out written)) return written;
-        
-        if (TryWriteSerializable<T>(value, ctx, out written)) return written;
-        
-        if (TryWriteWithMetadata<T>(value, ctx, out written)) return written;
-
-        if (typeof(T).GetCustomAttribute<PackedBinarySerializableAttribute>() is { } attr)
-        {
-        }
+        if (TryWriteArray<T>(refT, ctx, out int written)) return written;
+        if (TryWriteEnumerable<T>(refT, ctx, out written)) return written;
+        if (TryWriteSerializable<T>(refT, ctx, out written)) return written;
+        if (TryWriteWithMetadata<T>(refT, ctx, out written)) return written;
 
         ThrowUnknownType(typeof(T));
         return default;

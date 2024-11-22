@@ -1,5 +1,5 @@
 using System.Buffers;
-using System.Runtime.InteropServices;
+using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using VaettirNet.PackedBinarySerialization.Attributes;
@@ -15,13 +15,17 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        WeirdThing input = new WeirdThing { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222] };
         s.Serialize(
             buffer,
-            new WeirdThing { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222] },
+            input,
             options
         );
         var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(0);
+
+        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
     [TestCase(true)]
@@ -34,6 +38,8 @@ public class DynamicTests
         s.Serialize<WeirdThing>(buffer, null, options);
         var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(-1);
+        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeNull();
     }
     
     [TestCase(true)]
@@ -53,13 +59,16 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        SubWeirdThing input = new() { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222], SubField = 0x555};
         s.Serialize<WeirdThing>(
             buffer,
-            new SubWeirdThing { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222], SubField = 0x555},
+            input,
             options
         );
         var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(0x333);
+        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
     [TestCase(true)]
@@ -69,12 +78,15 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        WeirdThing input = new() { Ignored = 0x44};
         s.Serialize(
             buffer,
-            new WeirdThing { Ignored = 0x44},
+            input,
             options
         );
         buffer.WrittenSpan.ToArray().Should().NotContain(0x44);
+        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
     [TestCase(true)]
@@ -84,13 +96,17 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        ExplicitMembers input = new() { A = 11, B = 22, C = 3, D = 44, E = 5};
         s.Serialize(
             buffer,
-            new WeirdThing { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222] },
+            input,
             options
         );
-        var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
-        tag.Should().Be(0);
+        var bIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(22);
+        var aIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(11);
+        aIndex.Should().BeGreaterThan(bIndex);
+        var roundTripped = s.Deserialize<ExplicitMembers>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.E));
     }
 
     [PackedBinarySerializable(SequentialMembers = true)]
@@ -117,5 +133,20 @@ public class DynamicTests
     {
         [PackedBinaryIncludeType(0x999, typeof(WeirdThing))]
         public object Obj { get; set; }
+    }
+
+    [PackedBinarySerializable(SequentialMembers = false)]
+    private class ExplicitMembers
+    {
+        [PackedBinaryMember(2)]
+        public required int A;
+        [PackedBinaryMember(1)]
+        public required int B;
+        [PackedBinaryMember(3)]
+        public required int C;
+        [PackedBinaryMember(2)]
+        public required int D;
+        
+        public required int E;
     }
 }

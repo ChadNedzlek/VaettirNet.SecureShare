@@ -4,24 +4,23 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.PackedBinarySerialization;
 
 public ref partial struct PackedBinaryWriter<TWriter>
 {
-    private bool TryWriteWithMetadata<T>(object? value, PackedBinarySerializationContext ctx, out int written)
+    private bool TryWriteWithMetadata<T>(T? value, PackedBinarySerializationContext ctx, out int written)
     {
-        if (ctx.TypeTags != null)
+        if (ctx.TagMap != null && !typeof(T).IsValueType)
         {
-            written = WriteMemberWithMetadataCore((T?)value, ctx);
+            written = WriteMemberWithMetadataCore(value, ctx);
             return true;
         }
 
         if (typeof(T).GetCustomAttribute<PackedBinarySerializableAttribute>() is not null)
         {
-            written = WriteWithMetadataCore((T?)value, ctx);
+            written = WriteWithMetadataCore(value, ctx);
             return true;
         }
 
@@ -30,7 +29,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     }
 
     public int WriteWithMetadata<T>(T value, PackedBinarySerializationContext ctx) =>
-        WriteWithMetadataCore(value, ctx);
+        TryWriteWithMetadata(value, ctx, out int written) ? written : throw new ArgumentException($"Type {typeof(T).Name} is not metadata writable");
 
     private delegate int WriteMetadataDelegate<in T>(ref PackedBinaryWriter<TWriter> writer, T? value, PackedBinarySerializationContext ctx);
     private delegate int WriteTagDelegate(ref PackedBinaryWriter<TWriter> writer, object? value, PackedBinarySerializationContext ctx);
@@ -39,12 +38,6 @@ public ref partial struct PackedBinaryWriter<TWriter>
     {
         return GetMetadataWriteDelegate<T>(typeof(T)).Invoke(ref this, value, ctx);
     }
-
-    private static Type? GetMemberType(MemberInfo member) => member switch {
-        FieldInfo fieldInfo => fieldInfo.FieldType,
-        PropertyInfo propertyInfo => propertyInfo.PropertyType,
-        _ => null,
-    };
 
     private static Func<TObj, TMember>? GetMemberAccess<TObj, TMember>(MemberInfo member)
     {
@@ -93,10 +86,10 @@ public ref partial struct PackedBinaryWriter<TWriter>
         ref int written
     );
 
-    private delegate WriteMemberStaticDelegate<TObj> BuildMemberWriterMethod<in TObj>(scoped ref PackedBinaryWriter<TWriter> writer, MemberInfo member);
+    private delegate WriteMemberStaticDelegate<TObj> BuildMemberWriterMethod<in TObj>(MemberInfo member);
     private static WriteMemberStaticDelegate<TObj>? BuildWriteMember<TObj>(scoped ref PackedBinaryWriter<TWriter> writer, MemberInfo member)
     {
-        if (GetMemberType(member) is not { } memberType)
+        if (ReflectionHelpers.GetMemberType(member) is not { } memberType)
         {
             return null;
         }
@@ -109,7 +102,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
             )!;
             return method.MakeGenericMethod(typeof(TObj), memberType)
                 .CreateDelegate<BuildMemberWriterMethod<TObj>>()
-                .Invoke(ref writer, member);
+                .Invoke(member);
         }
 
         {
@@ -119,19 +112,16 @@ public ref partial struct PackedBinaryWriter<TWriter>
             )!;
             return method.MakeGenericMethod(typeof(TObj), member.DeclaringType!, memberType)
                 .CreateDelegate<BuildMemberWriterMethod<TObj>>()
-                .Invoke(ref writer, member);
+                .Invoke(member);
         }
     }
 
-    private static WriteMemberStaticDelegate<TType>? BuildValueTypeWriteMemberTyped<TType, TMember>(
-        scoped ref PackedBinaryWriter<TWriter> writer,
-        MemberInfo member
-    )
+    private static WriteMemberStaticDelegate<TType>? BuildValueTypeWriteMemberTyped<TType, TMember>(MemberInfo member)
     {
         Func<TType, TMember>? access = GetMemberAccess<TType, TMember>(member);
         if (access == null)
             return null;
-        
+
         (var makeIt, Func<PackedBinarySerializationContext, PackedBinarySerializationContext> newContext) =
             BuildMemberWriteDelegate<TType, TMember>(member);
 
@@ -143,17 +133,14 @@ public ref partial struct PackedBinaryWriter<TWriter>
         }
     }
 
-    private static WriteMemberStaticDelegate<TObj>? BuildRefTypeWriteMemberTyped<TObj, TMemberDecl, TMember>(
-        scoped ref PackedBinaryWriter<TWriter> writer,
-        MemberInfo member
-    )
+    private static WriteMemberStaticDelegate<TObj>? BuildRefTypeWriteMemberTyped<TObj, TMemberDecl, TMember>(MemberInfo member)
         where TObj : notnull
         where TMemberDecl : class
     {
         Func<TMemberDecl, TMember>? onDecl = GetMemberAccess<TMemberDecl, TMember>(member);
         if (onDecl == null)
             return null;
-        
+
         Func<TObj, TMember> access;
         if (typeof(TObj) == typeof(TMemberDecl))
         {
@@ -163,7 +150,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         {
             access = o => onDecl(Unsafe.As<TMemberDecl>(o));
         }
-        
+
         (var makeIt, Func<PackedBinarySerializationContext, PackedBinarySerializationContext> newContext) =
             BuildMemberWriteDelegate<TObj, TMember>(member);
 
@@ -187,31 +174,21 @@ public ref partial struct PackedBinaryWriter<TWriter>
         var typeIncludes = member.GetCustomAttributes<PackedBinaryIncludeTypeAttribute>().ToList();
         if (typeIncludes.Count != 0)
         {
-            Dictionary<Type, int> ctxTags = new() { { typeof(TMember), 0 } };
+
+            TagMap ctxTags = new();
+            ctxTags.Add(typeof(TMember), 0);
             foreach (var attr in typeIncludes)
             {
                 ctxTags.Add(attr.Type, attr.Tag);
             }
 
-            newContext = ctx => ctx.Descend() with { TypeTags = ctxTags };
+            newContext = ctx => ctx.Descend() with { TagMap = ctxTags };
         }
 
         return (makeIt, newContext);
     }
 
-    private class CachedWriteDelegate<TKey, TValue>
-        where TKey : notnull
-    {
-        public CachedWriteDelegate(int serializerRevision)
-        {
-            SerializerRevision = serializerRevision;
-        }
-
-        public int SerializerRevision { get; }
-        public DelegateCache<TKey, TValue> Delegates { get; } = new();
-    }
-
-    private static readonly ConditionalWeakTable<PackedBinarySerializer, CachedWriteDelegate<Type, Delegate>> s_dynamicWriters = new();
+    private static readonly ConditionalWeakTable<PackedBinarySerializer, CachedSerializerDelegate<PackedBinaryWriter<TWriter>, Type, Delegate>> s_dynamicWriters = new();
 
     private WriteMetadataDelegate<T> GetMetadataWriteDelegate<T>(Type type)
     {
@@ -221,7 +198,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         }
             
         // Either the revision didn't match (meaning we need to recalculate the delegates) or it wasn't present yet
-        s_dynamicWriters.AddOrUpdate(_serializer, cache = new CachedWriteDelegate<Type, Delegate>(_serializer.MetadataRevision));
+        s_dynamicWriters.AddOrUpdate(_serializer, cache = new CachedSerializerDelegate<PackedBinaryWriter<TWriter>, Type, Delegate>(_serializer.MetadataRevision));
         return (WriteMetadataDelegate<T>)cache.Delegates.GetOrCreate(ref this, type, Build);
 
         WriteMetadataDelegate<T> Build(Type type, scoped ref PackedBinaryWriter<TWriter> writer)
@@ -285,7 +262,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return written + GetDynamicWriteMembersDelegate<object>(value.GetType()).Invoke(ref this, value, ctx);
     }
 
-    private static readonly DelegateCache<Type, WriteTagDelegate> s_staticTagDelegates = new();
+    private static readonly DelegateCache<PackedBinaryWriter<TWriter>, Type, WriteTagDelegate> s_staticTagDelegates = new();
 
     private delegate Dictionary<Type, T>? GetSupplementalTypeInformation<T>(ref PackedBinaryWriter<TWriter> writer, Type type);
     private delegate TOut ProcessSupplementalTypeInformation<in TIn, out TOut>(ref PackedBinaryWriter<TWriter> writer, Type type, TIn value);
@@ -323,13 +300,6 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
         return value;
     }
-
-    private Dictionary<Type, T> MakeTypeClosure<T>(
-        Type root,
-        T rootValue,
-        ProcessAttributeTypeInformation<T> fromAttribute
-    )
-        => MakeTypeClosure<T, int>(root, rootValue, fromAttribute, null, null);
 
     private WriteTagDelegate GetStaticWriteTagDelegate(Type type)
     {
@@ -370,50 +340,9 @@ public ref partial struct PackedBinaryWriter<TWriter>
         }
     }
 
-    private class DelegateCache<TKey, TValue>
-        where TKey : notnull
-    {
-        public delegate TValue CreateCallback(TKey key, scoped ref PackedBinaryWriter<TWriter> writer);
-        
-        private readonly Dictionary<TKey, TValue> _cache = [];
-        private readonly ReaderWriterLockSlim _lock = new();
-
-        public TValue GetOrCreate(scoped ref PackedBinaryWriter<TWriter> writer, TKey key, CreateCallback create)
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                if (_cache.TryGetValue(key, out var value))
-                {
-                    return value;
-                }
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-            
-            _lock.EnterWriteLock();
-            try
-            {
-                if (_cache.TryGetValue(key, out var value))
-                {
-                    return value;
-                }
-
-                _cache.Add(key, value = create(key, ref writer));
-                return value;
-            }
-            finally
-            {
-                _lock.ExitWriteLock();
-            }
-        }
-    }
-
     private bool TryWriteContextTag(object value, PackedBinarySerializationContext ctx, out int written)
     {
-        if (ctx.TypeTags?.TryGetValue(value.GetType(), out int tag) is true)
+        if (ctx.TagMap?.TryGetTag(value.GetType(), out int tag) is true)
         {
             written = WriteInt32(tag, ctx with { UsePackedIntegers = true });
             return true;
@@ -448,7 +377,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         };
     }
 
-    private static readonly DelegateCache<(Type baseType, Type derivedType), Delegate> s_staticMemberWriteCache = new();
+    private static readonly DelegateCache<PackedBinaryWriter<TWriter>, (Type baseType, Type derivedType), Delegate> s_staticMemberWriteCache = new();
 
     private WriteMetadataDelegate<T> GetStaticWriteMembersDelegate<T>(Type valueType)
     {

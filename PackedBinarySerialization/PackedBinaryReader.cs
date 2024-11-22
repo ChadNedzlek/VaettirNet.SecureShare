@@ -139,6 +139,7 @@ public ref partial struct PackedBinaryReader<TReader>
         if (TryReadArray(type, ctx, out object? written)) return written;
         if (TryReadList(type, ctx, out written)) return written;
         if (TryReadSerializable(type, ctx, out written)) return written;
+        if (TryReadFromMetadata(type, ctx, out written)) return written;
             
         ThrowUnknownType(type);
         return default;

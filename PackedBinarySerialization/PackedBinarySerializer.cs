@@ -3,11 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipelines;
-using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using System.Text;
-using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.PackedBinarySerialization.Buffers;
 
 namespace VaettirNet.PackedBinarySerialization;
@@ -101,6 +97,10 @@ public class PackedBinarySerializer
     public Dictionary<Type, int>? GetSubtypeTags(Type baseClass)
     {
         return _typeToTag.GetValueOrDefault(baseClass);
+    }
+    public Dictionary<int, Type>? GetTagSubtypes(Type baseClass)
+    {
+        return _tagToType.GetValueOrDefault(baseClass);
     }
     
     public PackedBinarySerializer AddSubType<TBase, TDerived>(int tag) => AddSubType(typeof(TBase), typeof(TDerived), tag);

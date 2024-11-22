@@ -1,4 +1,3 @@
-using FluentAssertions;
 using FluentAssertions.Formatting;
 
 namespace SecureShare.Tests;

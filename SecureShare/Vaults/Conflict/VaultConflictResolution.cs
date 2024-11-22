@@ -1,9 +1,5 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
 
@@ -87,7 +83,7 @@ public class PartialVaultConflictResolution
 
         for (int i = 0; i < _resolutions.Length; i++)
         {
-            VaultResolutionItem resolution = _resolutions[i] ?? defaultResolution;
+            VaultResolutionItem resolution = _resolutions[i] ?? defaultResolution!;
             if (!_items[i].TryApplyTo(ref liveVault, resolution, algorithm))
             {
                 return (_items[i], resolution);
