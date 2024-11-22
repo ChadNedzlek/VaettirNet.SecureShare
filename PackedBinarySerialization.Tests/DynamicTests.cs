@@ -61,6 +61,37 @@ public class DynamicTests
         var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(0x333);
     }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void SerializeNoIgnoredMembersMembers(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        s.Serialize(
+            buffer,
+            new WeirdThing { Ignored = 0x44},
+            options
+        );
+        buffer.WrittenSpan.ToArray().Should().NotContain(0x44);
+    }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void SerializeExplicitMembers(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        s.Serialize(
+            buffer,
+            new WeirdThing { IntField = 0x666, SecondField = 0x444, ArrayProperty = [0x777, 0x888], SecondArrayProperty = [0x111, 0x222] },
+            options
+        );
+        var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
+        tag.Should().Be(0);
+    }
 
     [PackedBinarySerializable(SequentialMembers = true)]
     [PackedBinaryIncludeType(0x333, typeof(SubWeirdThing))]
@@ -70,6 +101,9 @@ public class DynamicTests
         public int SecondField;
         public int[] ArrayProperty { get; set; }
         public int[] SecondArrayProperty { get; set; }
+        
+        [PackedBinaryMemberIgnore]
+        public int Ignored { get; set; }
     }
     
     [PackedBinarySerializable(SequentialMembers = true)]
