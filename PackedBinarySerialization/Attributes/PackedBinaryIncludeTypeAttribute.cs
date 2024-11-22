@@ -2,7 +2,7 @@ using System;
 
 namespace VaettirNet.PackedBinarySerialization.Attributes;
 
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.GenericParameter)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.GenericParameter | AttributeTargets.Field | AttributeTargets.Property, Inherited = false)]
 public class PackedBinaryIncludeTypeAttribute : Attribute
 {
     public PackedBinaryIncludeTypeAttribute(int tag, Type type)
