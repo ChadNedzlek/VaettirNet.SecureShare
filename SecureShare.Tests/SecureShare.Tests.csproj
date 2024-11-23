@@ -18,6 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj" />
         <ProjectReference Include="..\SecureShare\SecureShare.csproj"/>
     </ItemGroup>
 

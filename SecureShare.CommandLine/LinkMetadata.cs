@@ -1,13 +1,13 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.CommandLine;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class LinkMetadata : FullSerializable<LinkMetadata>
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public DateTimeOffset Created { get; private set; }
 
     public LinkMetadata()

@@ -1,16 +1,16 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class PrivateClientInfo
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid ClientId { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public ReadOnlyMemory<byte> EncryptionKey { get; private set; }
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> SigningKey { get; private set; }
 
     public PrivateClientInfo(Guid clientId, ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey)

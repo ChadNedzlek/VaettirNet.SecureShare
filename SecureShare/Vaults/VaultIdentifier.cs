@@ -1,18 +1,18 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class VaultIdentifier : IComparable<VaultIdentifier>, IEquatable<VaultIdentifier>, IComparable
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public string Name{ get; private set; }
 
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public string AttributeTypeName{ get; private set; }
 
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public string ProtectedTypeName{ get; private set; }
     
     public VaultIdentifier(string name, string attributeTypeName, string protectedTypeName)

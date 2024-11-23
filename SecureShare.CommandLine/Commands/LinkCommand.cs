@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Mono.Options;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.CommandLine.Services;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
@@ -315,16 +315,16 @@ internal class LinkCommand : RootCommand<RunState>
         }
     }
 
-    [ProtoContract(SkipConstructor = true)]
+    [PackedBinarySerializable]
     public class LinkMetadata : FullSerializable<LinkMetadata>
     {
-        [ProtoMember(1)]
+        [PackedBinaryMember(1)]
         public string AccessKey { get; private set; }
-        [ProtoMember(2)]
+        [PackedBinaryMember(2)]
         public string Bucket { get; private set; }
-        [ProtoMember(3)]
+        [PackedBinaryMember(3)]
         public string Region { get; private set; }
-        [ProtoMember(4)]
+        [PackedBinaryMember(4)]
         public string Name { get; private set; }
 
         public LinkMetadata(string accessKey, string bucket, string region, string name)
@@ -336,10 +336,10 @@ internal class LinkCommand : RootCommand<RunState>
         }
     }
 
-    [ProtoContract(SkipConstructor = true)]
+    [PackedBinarySerializable]
     public class LinkProtected : BinarySerializable<LinkProtected>
     {
-        [ProtoMember(1)]
+        [PackedBinaryMember(1)]
         public string SecretKey { get; private set; }
             
         public LinkProtected(string secretKey)

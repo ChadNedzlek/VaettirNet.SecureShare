@@ -78,7 +78,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 unprotected = decrypted[..decBytes];
             }
 
-            state.Keys = ProtobufObjectSerializer<PrivateClientInfo>.Create().Deserialize(unprotected);
+            state.Keys = PackedBinaryObjectSerializer<PrivateClientInfo>.Create().Deserialize(unprotected);
             return 0;
         }
     }
@@ -112,7 +112,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 return 1;
             }
 
-            var serializer = ProtobufObjectSerializer<PrivateClientInfo>.Create();
+            var serializer = PackedBinaryObjectSerializer<PrivateClientInfo>.Create();
             using RentedSpan<byte> unprotected = SpanHelpers.GrowingSpan(
                 stackalloc byte[200],
                 (Span<byte> span, out int cb) => serializer.TrySerialize(state.Keys, span, out cb),

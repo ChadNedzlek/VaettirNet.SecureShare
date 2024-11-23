@@ -1,19 +1,19 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class BlockedVaultClientEntry : IBinarySerializable<BlockedVaultClientEntry>, IComparable<BlockedVaultClientEntry>, IComparable
 {
-    public static IBinarySerializer<BlockedVaultClientEntry> GetBinarySerializer() => ProtobufObjectSerializer<BlockedVaultClientEntry>.Create();
+    public static IBinarySerializer<BlockedVaultClientEntry> GetBinarySerializer() => PackedBinaryObjectSerializer<BlockedVaultClientEntry>.Create();
     
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid ClientId { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public string Description { get; private set; }
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> PublicKey { get; private set; }
 
     public BlockedVaultClientEntry(Guid clientId, string description, ReadOnlyMemory<byte> publicKey)

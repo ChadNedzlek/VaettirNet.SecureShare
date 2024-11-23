@@ -1,9 +1,10 @@
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace SecureShare.Tests;
 
+[PackedBinarySerializable]
 public class Container
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public TestValue Value { get; private set; }
 }

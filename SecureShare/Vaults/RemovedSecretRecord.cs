@@ -1,19 +1,19 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class RemovedSecretRecord : BinarySerializable<RemovedSecretRecord>, IBinarySignable<RemovedSecretRecord>, IEquatable<RemovedSecretRecord>
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid Id { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public uint Version { get; private set; }
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> Signature { get; private set; }
 
     public RemovedSecretRecord(Guid id, uint version, ReadOnlyMemory<byte> signature)

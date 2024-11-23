@@ -1,9 +1,9 @@
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace SecureShare.Tests;
 
 public class TestValue
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid Id { get; private set; }
 }

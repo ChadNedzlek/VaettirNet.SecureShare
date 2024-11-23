@@ -1,13 +1,13 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class Signed<T>
     where T : ISignable
 {
-    [ProtoMember(1)] private T _payload;
+    [PackedBinaryMember(1)] private T _payload;
 
     public Signed(T payload, Guid signer, ReadOnlyMemory<byte> signature)
     {
@@ -16,10 +16,10 @@ public class Signed<T>
         Signer = signer;
     }
 
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public Guid Signer { get; }
 
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public ReadOnlyMemory<byte> Signature { get; private set; }
 
     public T DangerousGetPayload()

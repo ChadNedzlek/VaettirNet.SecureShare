@@ -12,13 +12,19 @@ public ref partial struct PackedBinaryReader<TReader>
 {
     public bool TryReadFromMetadata<T>(Type type, PackedBinarySerializationContext ctx, out T? value)
     {
-        if (ctx.TagMap is not null)
+        if (type.GetCustomAttribute<PackedBinarySerializableAttribute>() is not null ||
+            _serializer.GetTagSubtypes(type) is not null ||
+            ctx.TagMap is not null)
         {
+            return SerializeObject(ref this, out value);
         }
 
-        if (type.GetCustomAttribute<PackedBinarySerializableAttribute>() is { } attr)
+        value = default;
+        return false;
+
+        bool SerializeObject(scoped ref PackedBinaryReader<TReader> reader, out T? value)
         {
-            object? o = ReadFromMetadataCore<object>(type, ctx);
+            object? o = reader.ReadFromMetadataCore<object>(type, ctx);
             if (o is null)
             {
                 value = default;
@@ -31,9 +37,6 @@ public ref partial struct PackedBinaryReader<TReader>
 
             return true;
         }
-
-        value = default;
-        return false;
     }
 
     public T? ReadFromMetadata<T>(PackedBinarySerializationContext ctx) => TryReadFromMetadata<T>(typeof(T), ctx, out var value)
@@ -181,12 +184,13 @@ public ref partial struct PackedBinaryReader<TReader>
 
         return;
 
-        static Delegate BuildWriterDelegate((Type returnType, Type targetType, Type instanceType) key, ref PackedBinaryReader<TReader> refType)
+        static Delegate BuildWriterDelegate((Type returnType, Type targetType, Type instanceType) key, ref PackedBinaryReader<TReader> reader)
         {
-            var attr = key.targetType.GetCustomAttribute<PackedBinarySerializableAttribute>()!;
+            PackedBinarySerializableAttribute attr = key.targetType.GetCustomAttribute<PackedBinarySerializableAttribute>() ??
+                    reader._serializer.GetEffectiveSerializableAttribute(key.targetType);
 
             IEnumerable<MemberInfo> targetMembers = key.targetType.GetMembers(
-                    BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
+                    BindingFlags.Instance | BindingFlags.Public | (attr?.IncludeNonPublic is true ? BindingFlags.NonPublic : 0)
                 )
                 .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
             if (!attr.SequentialMembers)
@@ -198,7 +202,7 @@ public ref partial struct PackedBinaryReader<TReader>
                     .Select(x => x.member);
             }
 
-            WriteAllMembersDelegate<T> writeAllMembersDelegate = null;
+            WriteAllMembersDelegate<T>? writeAllMembersDelegate = null;
             foreach (var member in targetMembers)
             {
                 Type? memberType = ReflectionHelpers.GetMemberType(member);

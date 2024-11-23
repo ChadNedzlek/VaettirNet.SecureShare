@@ -5,7 +5,7 @@ namespace TreeFormat;
 
 public class BufferComparer : IEqualityComparer<ReadOnlyMemory<byte>>
 {
-    public static BufferComparer Instance = new();
+    public static readonly BufferComparer Instance = new();
 
     private BufferComparer()
     {

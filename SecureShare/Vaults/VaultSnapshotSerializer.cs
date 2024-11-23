@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
-using ProtoBuf.Meta;
+using VaettirNet.PackedBinarySerialization;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
@@ -10,25 +10,25 @@ namespace VaettirNet.SecureShare.Vaults;
 
 public class VaultSnapshotSerializer
 {
-    private readonly ProtobufObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>> _serializer;
+    private readonly PackedBinaryObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>> _serializer;
 
     public VaultSnapshotSerializer(params IEnumerable<Type> sealedSecretTypes)
     {
-        _serializer = ProtobufObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>>.Create(
+        _serializer = PackedBinaryObjectSerializer<Signed<UnvalidatedVaultDataSnapshot>>.Create(
             model =>
             {
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
-                MetaType? sealedValueType = model.Add<UntypedSealedSecret>();
+                var sealedValueType = model.AddType<UntypedSealedSecret>();
                 int fieldNumber = 20;
                 foreach (Type type in sealedSecretTypes)
                 {
-                    sealedValueType.AddSubType(fieldNumber++, type).UseConstructor = false;
+                    sealedValueType.AddSubType(fieldNumber++, type);
                 }
 
-                void AddSignedType<T>(RuntimeTypeModel runtimeTypeModel) where T : ISignable
+                void AddSignedType<T>(PackedBinarySerializer runtimeTypeModel) where T : ISignable
                 {
-                    runtimeTypeModel.Add<Signed<T>>();
+                    runtimeTypeModel.AddType<Signed<T>>();
                 }
             }
         );

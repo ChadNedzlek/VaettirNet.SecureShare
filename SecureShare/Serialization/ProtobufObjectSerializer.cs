@@ -1,31 +1,31 @@
 using System;
 using System.Buffers;
 using System.IO;
-using ProtoBuf.Meta;
+using VaettirNet.PackedBinarySerialization;
 
 namespace VaettirNet.SecureShare.Serialization;
 
-public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
+public class PackedBinaryObjectSerializer<T> : IBinarySerializer<T>
 {
-    private readonly RuntimeTypeModel _typeModel;
+    private readonly PackedBinarySerializer _serializer;
 
-    private ProtobufObjectSerializer(params ReadOnlySpan<Type> additionalTypes)
+    private PackedBinaryObjectSerializer(params ReadOnlySpan<Type> additionalTypes)
     {
-        _typeModel = RuntimeTypeModel.Create();
-        _typeModel.Add<T>();
-        _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
-        foreach (Type? type in additionalTypes) _typeModel.Add(type);
+        _serializer = new PackedBinarySerializer();
+        _serializer.AddType<T>();
+        _serializer.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
+        foreach (Type? type in additionalTypes) _serializer.AddType(type);
     }
 
-    private ProtobufObjectSerializer(Action<RuntimeTypeModel> customize)
+    private PackedBinaryObjectSerializer(Action<PackedBinarySerializer> customize)
     {
-        _typeModel = RuntimeTypeModel.Create();
-        _typeModel.Add<T>();
-        _typeModel.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
-        customize(_typeModel);
+        _serializer = new PackedBinarySerializer();
+        _serializer.AddType<T>();
+        _serializer.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
+        customize(_serializer);
     }
 
-    private static ProtobufObjectSerializer<T> Instance { get; } = new();
+    private static PackedBinaryObjectSerializer<T> Instance { get; } = new();
 
     public bool TrySerialize(T value, Span<byte> destination, out int bytesWritten)
     {
@@ -34,7 +34,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
             fixed (byte* buffer = &destination.GetPinnableReference())
             {
                 FixedSizeUnmanagedMemoryStream s = new(new UnmanagedMemoryStream(buffer, 0, destination.Length, FileAccess.Write));
-                _typeModel.Serialize(s, value);
+                _serializer.Serialize(s, value);
                 if (s.IsExhausted)
                 {
                     bytesWritten = 0;
@@ -50,14 +50,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
 
     public T Deserialize(ReadOnlySpan<byte> source)
     {
-        unsafe
-        {
-            fixed (byte* buffer = &source.GetPinnableReference())
-            {
-                using PointerMemoryManager mm = new(buffer, source.Length);
-                return (T)_typeModel.Deserialize(mm.Memory, type: typeof(T));
-            }
-        }
+        return _serializer.Deserialize<T>(source);
     }
 
     private static DateTimeOffset TicksToDateTimeOffsetUtc(long t)
@@ -70,7 +63,7 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         return d.UtcTicks;
     }
 
-    public static ProtobufObjectSerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
+    public static PackedBinaryObjectSerializer<T> Create(params ReadOnlySpan<Type> additionalTypes)
     {
         if (additionalTypes.IsEmpty)
             return Instance;
@@ -79,22 +72,22 @@ public class ProtobufObjectSerializer<T> : IBinarySerializer<T>
         {
         }
 
-        return new ProtobufObjectSerializer<T>(additionalTypes);
+        return new PackedBinaryObjectSerializer<T>(additionalTypes);
     }
 
-    public static ProtobufObjectSerializer<T> Create(Action<RuntimeTypeModel> customize)
+    public static PackedBinaryObjectSerializer<T> Create(Action<PackedBinarySerializer> customize)
     {
-        return new ProtobufObjectSerializer<T>(customize);
+        return new PackedBinaryObjectSerializer<T>(customize);
     }
 
     public void Serialize(Stream stream, T value)
     {
-        _typeModel.Serialize(stream, value);
+        _serializer.Serialize(stream, value);
     }
 
     public T Deserialize(Stream source)
     {
-        return (T)_typeModel.Deserialize(source, null, typeof(T));
+        return _serializer.Deserialize<T>(source);
     }
 
     private sealed unsafe class PointerMemoryManager : MemoryManager<byte>

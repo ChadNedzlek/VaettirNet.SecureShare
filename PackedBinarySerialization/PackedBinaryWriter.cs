@@ -37,6 +37,24 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return WriteCore(ref this, value, ctx);
     }
 
+    private delegate int WriteSurrogateDelegate<in TModel>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TModel value,
+        Delegate transform,
+        PackedBinarySerializationContext ctx
+    );
+
+    private static int WriteSurrogate<TModel, TSurrogate>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TModel value,
+        Delegate transform,
+        PackedBinarySerializationContext ctx
+    )
+    {
+        var typedTransform = (Func<TModel, TSurrogate>)transform;
+        return writer.Write(typedTransform(value), ctx);
+    }
+
     private static int WriteCore<T>(ref PackedBinaryWriter<TWriter> writer, T value, PackedBinarySerializationContext ctx)
     {
         if (typeof(T) == typeof(void))
@@ -107,6 +125,15 @@ public ref partial struct PackedBinaryWriter<TWriter>
         if (typeof(T) == typeof(char))
         {
             return writer.WriteChar((char)(object)value, ctx);
+        }
+        
+        if (writer._serializer.TryGetWriteSurrogate(typeof(T), out var targetType, out var transformDelegate))
+        {
+            return typeof(PackedBinaryWriter<TWriter>)
+                .GetMethod(nameof(WriteSurrogate), BindingFlags.Static | BindingFlags.NonPublic)!
+                .MakeGenericMethod(typeof(T), targetType)
+                .CreateDelegate<WriteSurrogateDelegate<T>>()
+                .Invoke(ref writer, value, transformDelegate, ctx);
         }
 
         if (!typeof(T).IsValueType)

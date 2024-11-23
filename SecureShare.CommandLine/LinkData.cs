@@ -1,14 +1,14 @@
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.CommandLine;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class LinkData : BinarySerializable<LinkData>
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public string Name { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public string Url { get; private set; }
 
     public LinkData(string name, string url)

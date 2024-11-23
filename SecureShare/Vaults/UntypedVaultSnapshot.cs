@@ -2,23 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class UntypedVaultSnapshot : IComparable<UntypedVaultSnapshot>, IComparable
 {
 
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public VaultIdentifier Id { get; private set; }
 
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     private ImmutableSortedSet<UntypedSealedSecret>? _secrets;
     public ImmutableSortedSet<UntypedSealedSecret> Secrets => _secrets ?? [];
 
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     private ImmutableSortedSet<RemovedSecretRecord>? _removedSecrets;
     public ImmutableSortedSet<RemovedSecretRecord> RemovedSecrets => _removedSecrets ?? [];
 

@@ -1,23 +1,23 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class SealedSecret<TAttributes, TProtected> : UntypedSealedSecret
     where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>
 {
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public TAttributes Attributes { get; private set; }
 
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> Protected { get; private set; }
 
-    [ProtoMember(4)]
+    [PackedBinaryMember(4)]
     public int KeyId { get; private set; }
 
     public SealedSecret(Guid id, uint version, ReadOnlyMemory<byte> hashBytes, TAttributes attributes, ReadOnlyMemory<byte> @protected, int keyId) : base(id, version, hashBytes)

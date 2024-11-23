@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.Linq;
 using FluentAssertions;
@@ -108,8 +109,39 @@ public class DynamicTests
         var roundTripped = s.Deserialize<ExplicitMembers>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.E));
     }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void AddType(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        s.AddType<AbstractTestValue>().AddSubType<DerivedTestValue>(7).WithMemberLayout(PackedBinaryMemberLayout.Sequential);
+        DerivedTestValue input = new() { BaseValue = 0x11, DerivedValue = 0x44};
+        s.Serialize<AbstractTestValue>(buffer, input, options);
+        var roundTripped = s.Deserialize<AbstractTestValue>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeOfType<DerivedTestValue>().And.BeEquivalentTo(input);
+    }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void SetSurrogate(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        DateTimeOffset value = DateTimeOffset.UtcNow;
+        var serializeDateTimeOffset = () => s.Serialize(buffer, value, options);
+        serializeDateTimeOffset.Should().Throw<ArgumentException>();
+        buffer.ResetWrittenCount();
+        s.SetSurrogate<DateTimeOffset, long>(d => d.UtcTicks, t => new DateTimeOffset(t, TimeSpan.Zero));
+        s.Serialize(buffer, value, options);
+        var roundTripped = s.Deserialize<DateTimeOffset>(buffer.WrittenSpan, options);
+        roundTripped.Should().Be(value);
+    }
 
-    [PackedBinarySerializable(SequentialMembers = true)]
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
     [PackedBinaryIncludeType(0x333, typeof(SubWeirdThing))]
     private class WeirdThing
     {
@@ -122,20 +154,20 @@ public class DynamicTests
         public int Ignored { get; set; }
     }
     
-    [PackedBinarySerializable(SequentialMembers = true)]
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
     private class SubWeirdThing : WeirdThing
     {
         public int SubField;
     }
 
-    [PackedBinarySerializable(SequentialMembers = true)]
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
     private class ObjHolder
     {
         [PackedBinaryIncludeType(0x999, typeof(WeirdThing))]
         public object Obj { get; set; }
     }
 
-    [PackedBinarySerializable(SequentialMembers = false)]
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Explicit)]
     private class ExplicitMembers
     {
         [PackedBinaryMember(2)]
@@ -148,5 +180,15 @@ public class DynamicTests
         public required int D;
         
         public required int E;
+    }
+
+    public abstract class AbstractTestValue
+    {
+        public int BaseValue { get; set; }
+    }
+
+    public class DerivedTestValue : AbstractTestValue
+    {
+        public int DerivedValue { get; set; }
     }
 }

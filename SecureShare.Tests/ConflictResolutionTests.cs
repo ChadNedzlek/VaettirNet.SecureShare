@@ -1,7 +1,7 @@
 using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
@@ -516,10 +516,10 @@ public class ConflictResolutionTests
         );
     }
 
-    [ProtoContract]
+    [PackedBinarySerializable]
     public class OtherSecretAttributes : FullSerializable<OtherSecretAttributes>
     {
-        [ProtoMember(1)]
+        [PackedBinaryMember(1)]
         public string Value { get; set; }
     }
 }

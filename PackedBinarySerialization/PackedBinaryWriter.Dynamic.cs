@@ -24,6 +24,12 @@ public ref partial struct PackedBinaryWriter<TWriter>
             return true;
         }
 
+        if (_serializer.GetSubtypeTags(typeof(T)) is not null || _serializer.GetEffectiveSerializableAttribute(typeof(T)) is not null)
+        {
+            written = WriteWithMetadataCore(value, ctx);
+            return true;
+        }
+
         written = 0;
         return false;
     }
@@ -392,10 +398,11 @@ public ref partial struct PackedBinaryWriter<TWriter>
                 throw new ArgumentException($"Type {key.derivedType.Name} is not assignable to {typeof(T).Name}", nameof(valueType));
             }
 
-            var attr = key.derivedType.GetCustomAttribute<PackedBinarySerializableAttribute>()!;
+            PackedBinarySerializableAttribute attr = key.derivedType.GetCustomAttribute<PackedBinarySerializableAttribute>() ??
+                writer._serializer.GetEffectiveSerializableAttribute(key.derivedType);
 
             var targetMembers = key.derivedType.GetMembers(
-                    BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
+                    BindingFlags.Instance | BindingFlags.Public | (attr?.IncludeNonPublic is true? BindingFlags.NonPublic : 0)
                 )
                 .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
             if (!attr.SequentialMembers)

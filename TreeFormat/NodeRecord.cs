@@ -13,7 +13,7 @@ public sealed class NodeRecord
         Value = value;
     }
 
-    public ReadOnlyMemory<byte> Parent { get; }
-    public ReadOnlyMemory<byte> Signature { get; }
-    public NodeValue Value { get; }
+    public ReadOnlyMemory<byte> Parent { get; private init; }
+    public ReadOnlyMemory<byte> Signature { get; private init; }
+    public NodeValue Value { get; private init; }
 }

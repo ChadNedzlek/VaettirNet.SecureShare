@@ -1,20 +1,20 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class UntypedSealedSecret : IEquatable<UntypedSealedSecret>
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid Id { get; private set; }
 
-    [ProtoMember(5)]
+    [PackedBinaryMember(5)]
     public uint Version { get; private set; }
 
-    [ProtoMember(6)]
+    [PackedBinaryMember(6)]
     public ReadOnlyMemory<byte> HashBytes { get; private set; }
 
     public UntypedSealedSecret(Guid id, uint version, ReadOnlyMemory<byte> hashBytes)

@@ -1,10 +1,9 @@
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace TreeFormat.Tests;
 
-[ProtoContract]
+[PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
 internal class TestNodeValue : NodeValue
 {
-    [ProtoMember(1)]
     public required int Member { get; init; }
 }

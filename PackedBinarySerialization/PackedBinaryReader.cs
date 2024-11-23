@@ -27,6 +27,24 @@ public ref partial struct PackedBinaryReader<TReader>
         ref TOut refVale = ref Unsafe.As<TIn, TOut>(ref value);
         return refVale;
     }
+    
+    private delegate TOut ReadSurrogateDelegate<out TOut>(
+        scoped ref PackedBinaryReader<TReader> reader,
+        Delegate transform,
+        PackedBinarySerializationContext ctx
+    )
+        where TOut : allows ref struct;
+
+    private static TOut WriteSurrogate<TModel, TSurrogate, TOut>(
+        scoped ref PackedBinaryReader<TReader> reader,
+        Delegate transform,
+        PackedBinarySerializationContext ctx
+    )
+        where TOut : allows ref struct
+    {
+        var typedTransform = (Func<TSurrogate, TModel>)transform;
+        return As<TModel, TOut>(typedTransform(reader.Read<TSurrogate>(ctx)));
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public T Read<T>(Type type, PackedBinarySerializationContext ctx)
@@ -100,6 +118,12 @@ public ref partial struct PackedBinaryReader<TReader>
         if (type == typeof(char))
         {
             return As<char, T>(ReadChar(ctx));
+        }
+
+        if (_serializer.TryGetReadSurrogate(type, out var targetType, out var transform))
+        {
+            return GetMember<ReadSurrogateDelegate<T>>(nameof(WriteSurrogate), type, targetType, typeof(T))
+                .Invoke(ref this, transform, ctx);
         }
 
         if (!type.IsValueType)

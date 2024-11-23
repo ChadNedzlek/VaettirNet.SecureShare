@@ -3,6 +3,6 @@ using System;
 namespace VaettirNet.PackedBinarySerialization.Attributes;
 
 [AttributeUsage(AttributeTargets.Constructor)]
-public class PackageBinaryConstructorAttribute : Attribute
+public class PackedBinaryConstructorAttribute : Attribute
 {
 }

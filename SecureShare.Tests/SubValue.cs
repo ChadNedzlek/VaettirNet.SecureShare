@@ -1,4 +1,4 @@
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace SecureShare.Tests;
 
@@ -9,6 +9,6 @@ public class SubValue<T> : TestValue
         Value = value;
     }
 
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public T Value { get; private set; }
 }

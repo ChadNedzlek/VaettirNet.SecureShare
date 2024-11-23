@@ -1,23 +1,23 @@
 using System;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(UseProtoMembersOnly = true, SkipConstructor = true)]
+[PackedBinarySerializable]
 public class VaultClientEntry : IComparable<VaultClientEntry>, IComparable, IEquatable<VaultClientEntry>
 {
     public PublicClientInfo PublicInfo => new(ClientId, EncryptionKey, SigningKey);
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid ClientId { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public string Description { get; private set; }
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> EncryptionKey { get; private set; }
-    [ProtoMember(4)]
+    [PackedBinaryMember(4)]
     public ReadOnlyMemory<byte> SigningKey { get; private set; }
-    [ProtoMember(5)]
+    [PackedBinaryMember(5)]
     public ReadOnlyMemory<byte> EncryptedSharedKey { get; private set; }
-    [ProtoMember(6)]
+    [PackedBinaryMember(6)]
     public Guid Authorizer { get; private set; }
 
     public VaultClientEntry(Guid clientId, string description, ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey, ReadOnlyMemory<byte> encryptedSharedKey, Guid authorizer)

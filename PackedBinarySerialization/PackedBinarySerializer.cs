@@ -1,9 +1,11 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Pipelines;
 using System.Text;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.PackedBinarySerialization.Buffers;
 
 namespace VaettirNet.PackedBinarySerialization;
@@ -12,6 +14,47 @@ public record class PackedBinarySerializationOptions(Encoding? Encoding = null, 
 
 public class PackedBinarySerializer
 {
+    public class TypeBuilder
+    {
+        private readonly PackedBinarySerializer _serializer;
+        private readonly Type _type;
+
+        public TypeBuilder(Type type, PackedBinarySerializer serializer)
+        {
+            _serializer = serializer;
+            _type = type;
+        }
+
+        public TypeBuilder AddSubType<TDerived>(int tag) => AddSubType(tag, typeof(TDerived));
+        public TypeBuilder AddSubType(int tag, Type derived)
+        {
+            _serializer.AddSubType(_type, derived, tag);
+            return new TypeBuilder(derived, _serializer);
+        }
+
+        public TypeBuilder WithAttribute(PackedBinarySerializableAttribute attribute)
+        {
+            _serializer._effectiveAttributes[_type] = attribute;
+            return this;
+        }
+
+        public TypeBuilder WithMemberLayout(PackedBinaryMemberLayout memberLayout)
+        {
+            var attr = _serializer._effectiveAttributes[_type];
+            _serializer._effectiveAttributes[_type] =
+                new PackedBinarySerializableAttribute { MemberLayout = memberLayout, IncludeNonPublic = attr.IncludeNonPublic };
+            return this;
+        }
+
+        public TypeBuilder IncludeNonPublicMembers(bool include = true)
+        {
+            var attr = _serializer._effectiveAttributes[_type];
+            _serializer._effectiveAttributes[_type] =
+                new PackedBinarySerializableAttribute { MemberLayout = attr.MemberLayout, IncludeNonPublic = include };
+            return this;
+        }
+    }
+
     private PackedBinarySerializationContext BuildContext(PackedBinarySerializationOptions? options)
     {
         if (options == null)
@@ -89,27 +132,79 @@ public class PackedBinarySerializer
         return new PackedBinaryReader<TReader>(this, reader).Read<T>(type, ctx);
     }
     
-    public int MetadataRevision { get; private set; } = 1;
+    internal int MetadataRevision { get; private set; } = 1;
 
     private readonly Dictionary<Type, Dictionary<int, Type>> _tagToType = [];
     private readonly Dictionary<Type, Dictionary<Type, int>> _typeToTag = [];
     
-    public Dictionary<Type, int>? GetSubtypeTags(Type baseClass)
+    internal Dictionary<Type, int>? GetSubtypeTags(Type baseClass)
     {
         return _typeToTag.GetValueOrDefault(baseClass);
     }
-    public Dictionary<int, Type>? GetTagSubtypes(Type baseClass)
+    internal Dictionary<int, Type>? GetTagSubtypes(Type baseClass)
     {
         return _tagToType.GetValueOrDefault(baseClass);
     }
-    
-    public PackedBinarySerializer AddSubType<TBase, TDerived>(int tag) => AddSubType(typeof(TBase), typeof(TDerived), tag);
-    public PackedBinarySerializer AddSubType(Type baseClass, Type derived, int tag)
+
+    public TypeBuilder AddType<T>() => AddType(typeof(T));
+    public TypeBuilder AddType(Type type)
+    {
+        _effectiveAttributes.Add(type, new PackedBinarySerializableAttribute());
+        return new TypeBuilder(type, this);
+    }
+
+    private PackedBinarySerializer AddSubType<TBase, TDerived>(int tag) where TDerived : TBase => AddSubType(typeof(TBase), typeof(TDerived), tag);
+    private PackedBinarySerializer AddSubType(Type baseClass, Type derived, int tag)
     {
         MetadataRevision++;
         _tagToType.GetOrAdd(baseClass).Add(tag, derived);
         _typeToTag.GetOrAdd(baseClass).Add(derived, tag);
+        _effectiveAttributes.GetOrAdd(derived, _ => new PackedBinarySerializableAttribute());
         return this;
+    }
+
+    private readonly Dictionary<Type, (Type targetType, Delegate transform)> _writeSurrogate = [];
+    private readonly Dictionary<Type, (Type targetType, Delegate transform)> _readSurrogate = [];
+
+    public PackedBinarySerializer SetSurrogate<TModel, TSerialized>(Func<TModel, TSerialized> fromModel, Func<TSerialized, TModel> toModel)
+    {
+        _writeSurrogate.Add(typeof(TModel), (typeof(TSerialized), fromModel));
+        _readSurrogate.Add(typeof(TModel), (typeof(TSerialized), toModel));
+        return this;
+    }
+
+    internal bool TryGetWriteSurrogate(Type modelType, [NotNullWhen(true)] out Type? targetType, [NotNullWhen(true)] out Delegate? transform)
+    {
+        if (_writeSurrogate.TryGetValue(modelType, out var surrogate))
+        {
+            targetType = surrogate.targetType;
+            transform = surrogate.transform;
+            return true;
+        }
+
+        targetType = null;
+        transform = null;
+        return false;
+    }
+    
+    internal bool TryGetReadSurrogate(Type modelType, [NotNullWhen(true)] out Type? targetType, [NotNullWhen(true)] out Delegate? transform)
+    {
+        if (_readSurrogate.TryGetValue(modelType, out var surrogate))
+        {
+            targetType = surrogate.targetType;
+            transform = surrogate.transform;
+            return true;
+        }
+
+        targetType = null;
+        transform = null;
+        return false;
+    }
+
+    private readonly Dictionary<Type, PackedBinarySerializableAttribute> _effectiveAttributes = [];
+    public PackedBinarySerializableAttribute? GetEffectiveSerializableAttribute(Type type)
+    {
+        return _effectiveAttributes.GetValueOrDefault(type);
     }
 }
 
@@ -124,6 +219,7 @@ internal static class DictionaryExtensions
 
         return value;
     }
+    
     public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key) where TValue : new()
     {
         if (!dictionary.TryGetValue(key, out TValue? value))

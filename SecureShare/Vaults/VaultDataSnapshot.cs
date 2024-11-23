@@ -4,32 +4,32 @@ using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class UnvalidatedVaultDataSnapshot : BinarySerializable<UnvalidatedVaultDataSnapshot>, ISignable
 {
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     private ImmutableSortedSet<VaultClientEntry>? _clients;
     public ImmutableSortedSet<VaultClientEntry> Clients => _clients ?? [];
 
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     private ImmutableSortedSet<BlockedVaultClientEntry>? _blockedClients;
     public ImmutableSortedSet<BlockedVaultClientEntry> BlockedClients => _blockedClients ?? ImmutableSortedSet<BlockedVaultClientEntry>.Empty;
 
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     private ImmutableList<Signed<ClientModificationRecord>>? _clientModifications;
     public ImmutableList<Signed<ClientModificationRecord>> ClientModifications => _clientModifications ?? ImmutableList<Signed<ClientModificationRecord>>.Empty;
 
-    [ProtoMember(4)]
+    [PackedBinaryMember(4)]
     private ImmutableSortedSet<UntypedVaultSnapshot>? _vaults;
     public ImmutableSortedSet<UntypedVaultSnapshot> Vaults => _vaults ?? ImmutableSortedSet<UntypedVaultSnapshot>.Empty;
 
-    [ProtoMember(5)]
+    [PackedBinaryMember(5)]
     public uint Version { get; private set; }
 
     public UnvalidatedVaultDataSnapshot(

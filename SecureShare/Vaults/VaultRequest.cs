@@ -1,11 +1,11 @@
 using System;
 using System.Text;
-using ProtoBuf;
+using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[ProtoContract(SkipConstructor = true)]
+[PackedBinarySerializable]
 public class VaultRequest : BinarySerializable<VaultRequest>
 {
     public VaultRequest(Guid clientId, string description, ReadOnlyMemory<byte> encryptionKey, ReadOnlyMemory<byte> signingKey, ReadOnlyMemory<byte> extraData = default)
@@ -17,15 +17,15 @@ public class VaultRequest : BinarySerializable<VaultRequest>
         ExtraData = extraData;
     }
 
-    [ProtoMember(1)]
+    [PackedBinaryMember(1)]
     public Guid ClientId { get; private set; }
-    [ProtoMember(2)]
+    [PackedBinaryMember(2)]
     public string Description { get; }
-    [ProtoMember(3)]
+    [PackedBinaryMember(3)]
     public ReadOnlyMemory<byte> EncryptionKey { get; private set; }
-    [ProtoMember(4)]
+    [PackedBinaryMember(4)]
     public ReadOnlyMemory<byte> SigningKey { get; private set; }
-    [ProtoMember(5)]
+    [PackedBinaryMember(5)]
     public ReadOnlyMemory<byte> ExtraData { get; private set; }
     
     public PublicClientInfo PublicInfo => new PublicClientInfo(ClientId, EncryptionKey, SigningKey);
