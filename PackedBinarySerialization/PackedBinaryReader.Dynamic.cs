@@ -81,52 +81,68 @@ public ref partial struct PackedBinaryReader<TReader>
         return refT;
     }
 
+
+    private static readonly DelegateCache<PackedBinaryReader<TReader>, Type, ReadTypeCallback> s_tagDelegates = new();
+    
+    private delegate Type? ReadTypeCallback(scoped ref PackedBinaryReader<TReader> reader);
+    
     private T? ReadFromMetadataAsType<T>(PackedBinarySerializationContext ctx)
     {
-        if (typeof(T).IsValueType)
-        {
-#nullable disable
-            return ReadMembers<T>(typeof(T), ctx);
-#nullable restore
-        }
-
-        int tag = ReadInt32(ctx with { UsePackedIntegers = true });
-        if (tag == -1)
-            return default;
-
-        Type? instanceType = null;
-        if (tag == 0)
-        {
-            instanceType = typeof(T);
-        }
-        else if (ctx.TagMap is { } ctxMap && ctxMap.TryGetType(tag, out Type? ctxType))
-        {
-            instanceType = ctxType;
-        }
-        else if (_serializer.GetTagSubtypes(typeof(T)) is { } sMap && sMap.TryGetValue(tag, out Type? sType))
-        {
-            instanceType = sType;
-        }
-        else
-        {
-            foreach (var attr in typeof(T).GetCustomAttributes<PackedBinaryIncludeTypeAttribute>())
-            {
-                if (attr.Tag == tag)
-                {
-                    instanceType = attr.Type;
-                    break;
-                }
-            }
-        }
+        ReadTypeCallback callback = s_tagDelegates.GetOrCreate(ref this, typeof(T), CreateCallback);
+        Type? instanceType = callback(ref this);
 
         if (instanceType is null)
         {
-            throw new ArgumentException($"Unable to transform tag {tag} while reading type {typeof(T).Name}");
+            return default;
         }
 
 #nullable disable
         return ReadMembers<T>(instanceType, ctx);
 #nullable restore
+        ReadTypeCallback CreateCallback(Type key, ref PackedBinaryReader<TReader> refType)
+        {
+            Dictionary<int, Type> tagToType = key.GetCustomAttributes<PackedBinaryIncludeTypeAttribute>().ToDictionary(a => a.Tag, a => a.Type);
+            return GetTypeFromTag;
+            
+            Type? GetTypeFromTag(scoped ref PackedBinaryReader<TReader> reader)
+            {
+                if (key.IsValueType)
+                {
+#nullable disable
+                    return key;
+#nullable restore
+                }
+
+                int tag = reader.ReadInt32(ctx with { UsePackedIntegers = true });
+                if (tag == -1)
+                    return null;
+
+                Type? type = null;
+                if (tag == 0)
+                {
+                    type = key;
+                }
+                else if (ctx.TagMap is { } ctxMap && ctxMap.TryGetType(tag, out Type? ctxType))
+                {
+                    type = ctxType;
+                }
+                else if (reader._serializer.GetTagSubtypes(key) is { } sMap && sMap.TryGetValue(tag, out Type? sType))
+                {
+                    type = sType;
+                }
+                else if (tagToType.TryGetValue(tag, out Type? aType))
+                {
+                    type = aType;
+                }
+
+                if (type is null)
+                {
+                    throw new ArgumentException($"Unable to transform tag {tag} while reading type {typeof(T).Name}");
+                }
+
+                return type;
+            }
+        }
     }
 
     private static TBase Construct<TBase, TDerived>() where TDerived : TBase
