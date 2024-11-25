@@ -40,7 +40,7 @@ public class PackedBinarySerializer
 
         public TypeBuilder WithMemberLayout(PackedBinaryMemberLayout memberLayout)
         {
-            var attr = _serializer._effectiveAttributes[_type];
+            PackedBinarySerializableAttribute? attr = _serializer._effectiveAttributes[_type];
             _serializer._effectiveAttributes[_type] =
                 new PackedBinarySerializableAttribute { MemberLayout = memberLayout, IncludeNonPublic = attr.IncludeNonPublic };
             return this;
@@ -48,7 +48,7 @@ public class PackedBinarySerializer
 
         public TypeBuilder IncludeNonPublicMembers(bool include = true)
         {
-            var attr = _serializer._effectiveAttributes[_type];
+            PackedBinarySerializableAttribute? attr = _serializer._effectiveAttributes[_type];
             _serializer._effectiveAttributes[_type] =
                 new PackedBinarySerializableAttribute { MemberLayout = attr.MemberLayout, IncludeNonPublic = include };
             return this;
@@ -176,7 +176,7 @@ public class PackedBinarySerializer
 
     internal bool TryGetWriteSurrogate(Type modelType, [NotNullWhen(true)] out Type? targetType, [NotNullWhen(true)] out Delegate? transform)
     {
-        if (_writeSurrogate.TryGetValue(modelType, out var surrogate))
+        if (_writeSurrogate.TryGetValue(modelType, out (Type targetType, Delegate transform) surrogate))
         {
             targetType = surrogate.targetType;
             transform = surrogate.transform;
@@ -190,7 +190,7 @@ public class PackedBinarySerializer
     
     internal bool TryGetReadSurrogate(Type modelType, [NotNullWhen(true)] out Type? targetType, [NotNullWhen(true)] out Delegate? transform)
     {
-        if (_readSurrogate.TryGetValue(modelType, out var surrogate))
+        if (_readSurrogate.TryGetValue(modelType, out (Type targetType, Delegate transform) surrogate))
         {
             targetType = surrogate.targetType;
             transform = surrogate.transform;

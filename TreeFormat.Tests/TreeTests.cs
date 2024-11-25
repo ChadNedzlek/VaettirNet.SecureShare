@@ -25,7 +25,7 @@ public class TreeTests
         await builder.WriteTreeAsync(root, s);
         s.Flush();
         s.Position = 0;
-        var tree = await builder.ReadTreeAsync(s);
+        VaultNode tree = await builder.ReadTreeAsync(s);
         tree.Should().BeEquivalentTo(root);
     }
 }

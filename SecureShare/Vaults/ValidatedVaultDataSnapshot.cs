@@ -26,14 +26,14 @@ public readonly struct ValidatedVaultDataSnapshot
 
     public bool TryGetClientEntry(Guid id, out OneOf<VaultClientEntry, BlockedVaultClientEntry> result)
     {
-        var entry = Clients.FirstOrDefault(c => c.ClientId == id);
+        VaultClientEntry? entry = Clients.FirstOrDefault(c => c.ClientId == id);
         if (entry != null)
         {
             result = entry;
             return true;
         }
 
-        var blocked = BlockedClients.FirstOrDefault(c => c.ClientId == id);
+        BlockedVaultClientEntry? blocked = BlockedClients.FirstOrDefault(c => c.ClientId == id);
         if (blocked != null)
         {
             result = blocked;
@@ -78,7 +78,7 @@ public readonly struct ValidatedVaultDataSnapshot
 
     public static bool TryValidate(Signed<UnvalidatedVaultDataSnapshot> snapshot, ReadOnlySpan<byte> publicKey, VaultCryptographyAlgorithm algorithm, out ValidatedVaultDataSnapshot output)
     {
-        if (!Validated.TryValidate(snapshot, publicKey, algorithm, out var validated))
+        if (!Validated.TryValidate(snapshot, publicKey, algorithm, out Validated<UnvalidatedVaultDataSnapshot> validated))
         {
             output = default;
             return false;
@@ -90,7 +90,7 @@ public readonly struct ValidatedVaultDataSnapshot
 
     public static ValidatedVaultDataSnapshot Validate(Signed<UnvalidatedVaultDataSnapshot> snapshot, ReadOnlySpan<byte> publicKey, VaultCryptographyAlgorithm algorithm)
     {
-        if (!TryValidate(snapshot, publicKey, algorithm, out var validated))
+        if (!TryValidate(snapshot, publicKey, algorithm, out ValidatedVaultDataSnapshot validated))
         {
             throw new InvalidVaultException(snapshot.DangerousGetPayload(), "Invalidly signed vault");
         }
@@ -112,7 +112,7 @@ public static class ValidatedVaultDataSnapshotExtensions
     public static bool TryValidate(this Signed<UnvalidatedVaultDataSnapshot> snapshot, VaultCryptographyAlgorithm algorithm, out ValidatedVaultDataSnapshot validated)
     {
         UnvalidatedVaultDataSnapshot unvalidated = snapshot.DangerousGetPayload();
-        foreach (var client in unvalidated.Clients)
+        foreach (VaultClientEntry? client in unvalidated.Clients)
         {
             if (client.ClientId == snapshot.Signer)
             {
@@ -127,7 +127,7 @@ public static class ValidatedVaultDataSnapshotExtensions
     public static ValidatedVaultDataSnapshot Validate(this Signed<UnvalidatedVaultDataSnapshot> snapshot, VaultCryptographyAlgorithm algorithm)
     {
         UnvalidatedVaultDataSnapshot unvalidated = snapshot.DangerousGetPayload();
-        foreach (var client in unvalidated.Clients)
+        foreach (VaultClientEntry? client in unvalidated.Clients)
         {
             if (client.ClientId == snapshot.Signer)
             {

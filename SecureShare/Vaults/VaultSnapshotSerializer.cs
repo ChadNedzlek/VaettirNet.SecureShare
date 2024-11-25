@@ -19,7 +19,7 @@ public class VaultSnapshotSerializer
             {
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
-                var sealedValueType = model.AddType<UntypedSealedSecret>();
+                PackedBinarySerializer.TypeBuilder? sealedValueType = model.AddType<UntypedSealedSecret>();
                 int fieldNumber = 1;
                 foreach (Type type in sealedSecretTypes)
                 {

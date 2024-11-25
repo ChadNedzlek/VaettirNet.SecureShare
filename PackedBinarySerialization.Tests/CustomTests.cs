@@ -15,7 +15,7 @@ public class CustomTests
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         RefTypeObject expected = new(500, "A string");
         s.Serialize(buffer, expected, options);
-        var read = s.Deserialize<RefTypeObject>(buffer.WrittenSpan, options);
+        RefTypeObject read = s.Deserialize<RefTypeObject>(buffer.WrittenSpan, options);
         read.Should().BeEquivalentTo(expected);
     }
 

@@ -80,7 +80,7 @@ public class LiveVaultData
             throw new ArgumentException("Signature is not present in vault", nameof(record));
         }
 
-        if (!algorithm.TryValidate(record, signer.PublicInfo, out var payload))
+        if (!algorithm.TryValidate(record, signer.PublicInfo, out Validated<ClientModificationRecord> payload))
         {
             throw new ArgumentException("Signature is invalid", nameof(record));
         }
@@ -106,7 +106,7 @@ public class LiveVaultData
             throw new ArgumentException("Signature is not present in vault", nameof(record));
         }
 
-        if (!algorithm.TryValidate(record, signer.PublicInfo, out var payload))
+        if (!algorithm.TryValidate(record, signer.PublicInfo, out Validated<ClientModificationRecord> payload))
         {
             throw new ArgumentException("Signature is invalid", nameof(record));
         }
@@ -222,7 +222,7 @@ public class LiveVaultData
         int index = _vaults.FindIndex(v => v.Id.Equals(id));
         if (index >= 0)
         {
-            var secret = _vaults[index].Secrets.FirstOrDefault(s => s.Id == secretId);
+            UntypedSealedSecret? secret = _vaults[index].Secrets.FirstOrDefault(s => s.Id == secretId);
             if (secret == null)
                 return;
             

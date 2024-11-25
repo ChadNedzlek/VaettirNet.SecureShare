@@ -161,7 +161,7 @@ public class VaultCryptographyAlgorithm
 
     public T GetPayload<T>(Signed<T> signed, PublicClientInfo publicInfo) where T : ISignable
     {
-        if (!TryValidate(signed, publicInfo, out var payload))
+        if (!TryValidate(signed, publicInfo, out Validated<T> payload))
         {
             throw new ArgumentException("Signed is not validly signed by signer");
         }

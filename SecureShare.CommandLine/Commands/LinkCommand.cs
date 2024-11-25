@@ -116,7 +116,7 @@ internal class LinkCommand : RootCommand<RunState>
 
                 if (result.ConflictVault is { } signedConflictingSnapshot)
                 {
-                    var validatedConflict = signedConflictingSnapshot.Validate(state.Algorithm);
+                    ValidatedVaultDataSnapshot validatedConflict = signedConflictingSnapshot.Validate(state.Algorithm);
                     _prompt.WriteWarning("Conflict detected during vault upload...");
                     if (!validatedConflict.TryGetSignerPublicInfo(out PublicClientInfo signer))
                     {
@@ -140,7 +140,7 @@ internal class LinkCommand : RootCommand<RunState>
                             signedConflictingSnapshot,
                             signer.SigningKey.Span,
                             state.Algorithm,
-                            out var conflictingSnapshot
+                            out ValidatedVaultDataSnapshot conflictingSnapshot
                         ))
                     {
                         _prompt.WriteError("Invalid signature found");
@@ -158,11 +158,11 @@ internal class LinkCommand : RootCommand<RunState>
                     }
 
                     VaultConflictResult conflictResult = _conflictResolver.Resolve(state.LoadedSnapshot, conflictingSnapshot, vaultDataSnapshot);
-                    if (_conflictResolver.TryAutoResolveConflicts(conflictResult, state.Signer, out var newSnapshot))
+                    if (_conflictResolver.TryAutoResolveConflicts(conflictResult, state.Signer, out ValidatedVaultDataSnapshot newSnapshot))
                     {
                         if (_prompt.Confirm("Auto-resolve possible. Auto-resolve?"))
                         {
-                            var conflictUploadResult = await state.Sync.PutVaultAsync(newSnapshot, etag: result.CacheKey);
+                            PutVaultResult conflictUploadResult = await state.Sync.PutVaultAsync(newSnapshot, etag: result.CacheKey);
                             if (conflictUploadResult.Succeeded)
                             {
                                 return 0;
@@ -173,7 +173,7 @@ internal class LinkCommand : RootCommand<RunState>
                     }
 
                     PartialVaultConflictResolution resolution = conflictResult.GetResolver().WithAutoResolutions();
-                    while (resolution.TryGetNextUnresolved(out var conflict))
+                    while (resolution.TryGetNextUnresolved(out VaultConflictItem conflict))
                     {
                         switch (conflict)
                         {
@@ -269,7 +269,7 @@ internal class LinkCommand : RootCommand<RunState>
 
             OpenVaultReader<LinkMetadata, LinkProtected> store = state.VaultManager.Vault.GetStoreOrDefault<LinkMetadata, LinkProtected>();
             SecretTransformer transformer = state.VaultManager.GetTransformer(state.Keys);
-            var writer = store.GetWriter(transformer);
+            OpenVaultReader<LinkMetadata, LinkProtected>.Writer writer = store.GetWriter(transformer);
             List<SealedSecret<LinkMetadata, LinkProtected>> existingValues = store.GetSecrets().ToList();
             if (existingValues.Count == 0)
             {

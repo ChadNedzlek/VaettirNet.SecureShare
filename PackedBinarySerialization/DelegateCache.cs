@@ -17,7 +17,7 @@ internal class DelegateCache<TRef, TKey, TValue>
         _lock.EnterReadLock();
         try
         {
-            if (_cache.TryGetValue(key, out var value))
+            if (_cache.TryGetValue(key, out TValue? value))
             {
                 return value;
             }
@@ -30,7 +30,7 @@ internal class DelegateCache<TRef, TKey, TValue>
         _lock.EnterWriteLock();
         try
         {
-            if (_cache.TryGetValue(key, out var value))
+            if (_cache.TryGetValue(key, out TValue? value))
             {
                 return value;
             }

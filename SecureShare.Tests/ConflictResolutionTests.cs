@@ -161,7 +161,7 @@ public class ConflictResolutionTests
         resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out _).Should().BeFalse();
         resolver = resolver.WithAutoResolutions();
         resolver.TryGetNextUnresolved(out _).Should().BeFalse();
-        resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
+        resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
         (string remoteAttribute, string remoteProtected) = GetSecretValues(resolvedVault, remoteId);
         remoteAttribute.Should().Be("Remote Secret");
         remoteProtected.Should().Be("Remote Prot");
@@ -187,13 +187,13 @@ public class ConflictResolutionTests
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
         SecretConflictItem conflictItem = conflict.Items.Should().ContainSingle().Which.Should().BeOfType<SecretConflictItem>().Subject;
         s_resolver.TryAutoResolveConflicts(conflict, new RefSigner(s_algorithm, s_new.PrivateInfo), out _).Should().BeFalse();
-        var baseSecret = conflictItem.BaseEntry.Should().BeOfType<SealedSecret<SecretAttributes, SecretProtectedValue>>().Subject;
-        conflictItem.Local.Is<UntypedSealedSecret>(out var localUntyped).Should().BeTrue();
-        var localSecret = localUntyped.Should()
+        SealedSecret<SecretAttributes, SecretProtectedValue> baseSecret = conflictItem.BaseEntry.Should().BeOfType<SealedSecret<SecretAttributes, SecretProtectedValue>>().Subject;
+        conflictItem.Local.Is<UntypedSealedSecret>(out UntypedSealedSecret localUntyped).Should().BeTrue();
+        SealedSecret<SecretAttributes, SecretProtectedValue> localSecret = localUntyped.Should()
             .BeOfType<SealedSecret<SecretAttributes, SecretProtectedValue>>()
             .Subject;
-        conflictItem.Remote.Is<UntypedSealedSecret>(out var remoteUntyped).Should().BeTrue();
-        var remoteSecret = remoteUntyped.Should()
+        conflictItem.Remote.Is<UntypedSealedSecret>(out UntypedSealedSecret remoteUntyped).Should().BeTrue();
+        SealedSecret<SecretAttributes, SecretProtectedValue> remoteSecret = remoteUntyped.Should()
             .BeOfType<SealedSecret<SecretAttributes, SecretProtectedValue>>()
             .Subject;
         baseSecret.Attributes.Value.Should().Be("Value 1");
@@ -216,9 +216,9 @@ public class ConflictResolutionTests
         UpdateSecret(ref modifiedLocalVault, id, "Local Secret", "Local Prot", s_self);
         
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
-        var resolver = conflict.GetResolver();
-        resolver.Apply(s_algorithm, s_self.PrivateInfo, VaultResolutionItem.AcceptLocal).TryGetValue(out var resolvedVault).Should().BeTrue();
-        var (attribute, prot) = GetSecretValues(resolvedVault, id);
+        PartialVaultConflictResolution resolver = conflict.GetResolver();
+        resolver.Apply(s_algorithm, s_self.PrivateInfo, VaultResolutionItem.AcceptLocal).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
+        (string attribute, string prot) = GetSecretValues(resolvedVault, id);
         attribute.Should().Be("Local Secret");
         prot.Should().Be("Local Prot");
     }
@@ -238,11 +238,11 @@ public class ConflictResolutionTests
         UpdateSecret(ref modifiedLocalVault, id, "Local Secret", "Local Prot", s_self);
         
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
-        var resolver = conflict.GetResolver();
+        PartialVaultConflictResolution resolver = conflict.GetResolver();
         resolver.TryGetNextUnresolved(out VaultConflictItem unresolved).Should().BeTrue();
-        var localResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptLocal);
+        PartialVaultConflictResolution localResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptLocal);
         localResolution.TryGetNextUnresolved(out _).Should().BeFalse();
-        localResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
+        localResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
         (string attribute, string prot) = GetSecretValues(resolvedVault, id);
         attribute.Should().Be("Local Secret");
         prot.Should().Be("Local Prot");
@@ -264,9 +264,9 @@ public class ConflictResolutionTests
         
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
         s_resolver.TryAutoResolveConflicts(conflict, new RefSigner(s_algorithm, s_new.PrivateInfo), out _).Should().BeFalse();
-        var resolver = conflict.GetResolver();
-        resolver.Apply(s_algorithm, s_self.PrivateInfo, VaultResolutionItem.AcceptRemote).TryGetValue(out var resolvedVault).Should().BeTrue();
-        var (attribute, prot) = GetSecretValues(resolvedVault, id);
+        PartialVaultConflictResolution resolver = conflict.GetResolver();
+        resolver.Apply(s_algorithm, s_self.PrivateInfo, VaultResolutionItem.AcceptRemote).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
+        (string attribute, string prot) = GetSecretValues(resolvedVault, id);
         attribute.Should().Be("Remote Secret");
         prot.Should().Be("Remote Prot");
     }
@@ -286,13 +286,13 @@ public class ConflictResolutionTests
         UpdateSecret(ref modifiedLocalVault, id, "Local Secret", "Local Prot", s_self);
         
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
-        var resolver = conflict.GetResolver();
+        PartialVaultConflictResolution resolver = conflict.GetResolver();
         resolver.TryGetNextUnresolved(out VaultConflictItem unresolved).Should().BeTrue();
         
-        var remoteResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptRemote);
+        PartialVaultConflictResolution remoteResolution = resolver.WithResolution(unresolved!, VaultResolutionItem.AcceptRemote);
         remoteResolution.TryGetNextUnresolved(out _).Should().BeFalse();
-        remoteResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
-        var (attribute, prot) = GetSecretValues(resolvedVault, id);
+        remoteResolution.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
+        (string attribute, string prot) = GetSecretValues(resolvedVault, id);
         attribute.Should().Be("Remote Secret");
         prot.Should().Be("Remote Prot");
     }
@@ -322,7 +322,7 @@ public class ConflictResolutionTests
         VaultConflictResult conflict = s_resolver.Resolve(original, modifiedRemoteVault, modifiedLocalVault);
         PartialVaultConflictResolution resolver = conflict.GetResolver();
         int iterationCount = 0;
-        while (resolver.TryGetNextUnresolved(out var unresolved))
+        while (resolver.TryGetNextUnresolved(out VaultConflictItem unresolved))
         {
             (iterationCount++).Should().BeLessThanOrEqualTo(2, because: "should only have two conflicts that are resolved");
             SecretConflictItem secretConflict = unresolved.Should().BeOfType<SecretConflictItem>().Subject;
@@ -337,8 +337,8 @@ public class ConflictResolutionTests
             }
         }
 
-        resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out var resolvedVault).Should().BeTrue();
-        var (attribute, prot) = GetSecretValues(resolvedVault, id1);
+        resolver.Apply(s_algorithm, s_self.PrivateInfo).TryGetValue(out ValidatedVaultDataSnapshot resolvedVault).Should().BeTrue();
+        (string attribute, string prot) = GetSecretValues(resolvedVault, id1);
         attribute.Should().Be("Local Secret 1");
         prot.Should().Be("Local Prot 1");
         (attribute, prot) = GetSecretValues(resolvedVault, id2);

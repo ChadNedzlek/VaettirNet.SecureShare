@@ -18,8 +18,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TMemory ReadRecastMemory<TMemory, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
-        var span = writer.ReadMemory<TElement>(ctx);
-        ref var cast = ref Unsafe.As<Memory<TElement>, TMemory>(ref span);
+        Memory<TElement> span = writer.ReadMemory<TElement>(ctx);
+        ref TMemory cast = ref Unsafe.As<Memory<TElement>, TMemory>(ref span);
         return cast;
     }
 
@@ -46,8 +46,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TMemory ReadRecastReadOnlyMemory<TMemory, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
-        var span = writer.ReadReadOnlyMemory<TElement>(ctx);
-        ref var cast = ref Unsafe.As<ReadOnlyMemory<TElement>, TMemory>(ref span);
+        ReadOnlyMemory<TElement> span = writer.ReadReadOnlyMemory<TElement>(ctx);
+        ref TMemory cast = ref Unsafe.As<ReadOnlyMemory<TElement>, TMemory>(ref span);
         return cast;
     }
 
@@ -152,8 +152,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TArray ReadRecastImmutableArray<TArray, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
-        var span = writer.ReadImmutableArray<TElement>(ctx);
-        ref var cast = ref Unsafe.As<ImmutableArray<TElement>, TArray>(ref span);
+        ImmutableArray<TElement> span = writer.ReadImmutableArray<TElement>(ctx);
+        ref TArray cast = ref Unsafe.As<ImmutableArray<TElement>, TArray>(ref span);
         return cast;
     }
 
@@ -179,8 +179,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TList ReadRecastImmutableList<TList, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
-        var span = writer.ReadImmutableList<TElement>(ctx);
-        ref var cast = ref Unsafe.As<ImmutableList<TElement>, TList>(ref span);
+        ImmutableList<TElement> span = writer.ReadImmutableList<TElement>(ctx);
+        ref TList cast = ref Unsafe.As<ImmutableList<TElement>, TList>(ref span);
         return cast;
     }
 
@@ -218,8 +218,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TSortedSet ReadRecastImmutableSortedSet<TSortedSet, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
-        var span = writer.ReadImmutableSortedSet<TElement>(ctx);
-        ref var cast = ref Unsafe.As<ImmutableSortedSet<TElement>, TSortedSet>(ref span);
+        ImmutableSortedSet<TElement> span = writer.ReadImmutableSortedSet<TElement>(ctx);
+        ref TSortedSet cast = ref Unsafe.As<ImmutableSortedSet<TElement>, TSortedSet>(ref span);
         return cast;
     }
 

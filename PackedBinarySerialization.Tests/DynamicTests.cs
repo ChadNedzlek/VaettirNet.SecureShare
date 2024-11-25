@@ -22,10 +22,10 @@ public class DynamicTests
             input,
             options
         );
-        var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
+        int tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(0);
 
-        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        WeirdThing roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
@@ -37,9 +37,9 @@ public class DynamicTests
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         s.Serialize<WeirdThing>(buffer, null, options);
-        var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
+        int tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(-1);
-        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        WeirdThing roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
         roundTripped.Should().BeNull();
     }
     
@@ -66,9 +66,9 @@ public class DynamicTests
             input,
             options
         );
-        var tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
+        int tag = s.Deserialize<int>(buffer.WrittenSpan, new PackedBinarySerializationOptions(UsePackedEncoding:true));
         tag.Should().Be(0x333);
-        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        WeirdThing roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
@@ -86,7 +86,7 @@ public class DynamicTests
             options
         );
         buffer.WrittenSpan.ToArray().Should().NotContain(0x44);
-        var roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
+        WeirdThing roundTripped = s.Deserialize<WeirdThing>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.Ignored));
     }
     
@@ -103,10 +103,10 @@ public class DynamicTests
             input,
             options
         );
-        var bIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(22);
-        var aIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(11);
+        int bIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(22);
+        int aIndex = buffer.WrittenSpan.ToArray().ToList().IndexOf(11);
         aIndex.Should().BeGreaterThan(bIndex);
-        var roundTripped = s.Deserialize<ExplicitMembers>(buffer.WrittenSpan, options);
+        ExplicitMembers roundTripped = s.Deserialize<ExplicitMembers>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input, o => o.Excluding(t => t.E));
     }
     
@@ -120,7 +120,7 @@ public class DynamicTests
         s.AddType<AbstractTestValue>().AddSubType<DerivedTestValue>(7).WithMemberLayout(PackedBinaryMemberLayout.Sequential);
         DerivedTestValue input = new() { BaseValue = 0x11, DerivedValue = 0x44};
         s.Serialize<AbstractTestValue>(buffer, input, options);
-        var roundTripped = s.Deserialize<AbstractTestValue>(buffer.WrittenSpan, options);
+        AbstractTestValue roundTripped = s.Deserialize<AbstractTestValue>(buffer.WrittenSpan, options);
         roundTripped.Should().BeOfType<DerivedTestValue>().And.BeEquivalentTo(input);
     }
     
@@ -132,12 +132,12 @@ public class DynamicTests
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         DateTimeOffset value = DateTimeOffset.UtcNow;
-        var serializeDateTimeOffset = () => s.Serialize(buffer, value, options);
+        Action serializeDateTimeOffset = () => s.Serialize(buffer, value, options);
         serializeDateTimeOffset.Should().Throw<ArgumentException>();
         buffer.ResetWrittenCount();
         s.SetSurrogate<DateTimeOffset, long>(d => d.UtcTicks, t => new DateTimeOffset(t, TimeSpan.Zero));
         s.Serialize(buffer, value, options);
-        var roundTripped = s.Deserialize<DateTimeOffset>(buffer.WrittenSpan, options);
+        DateTimeOffset roundTripped = s.Deserialize<DateTimeOffset>(buffer.WrittenSpan, options);
         roundTripped.Should().Be(value);
     }
     

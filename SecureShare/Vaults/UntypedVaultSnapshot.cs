@@ -45,7 +45,7 @@ public class UntypedVaultSnapshot : IComparable<UntypedVaultSnapshot>, IComparab
 
     public OneOf<UntypedSealedSecret, RemovedSecretRecord> GetSecretEntry(Guid id)
     {
-        if (TryGetSecretEntry(id, out var entry))
+        if (TryGetSecretEntry(id, out OneOf<UntypedSealedSecret, RemovedSecretRecord> entry))
         {
             return entry;
         }

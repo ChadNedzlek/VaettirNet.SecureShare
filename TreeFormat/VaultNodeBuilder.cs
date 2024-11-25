@@ -66,7 +66,7 @@ public class VaultNodeBuilder
     public Task<VaultNode> ReadTreeAsync(Stream source)
     {
         PackedBinarySerializer s = GetSerializer();
-        var records = s.Deserialize<NodeRecord[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
+        NodeRecord[] records = s.Deserialize<NodeRecord[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
         return Task.FromResult(BuildTree(records));
     }
 
@@ -91,9 +91,9 @@ public class VaultNodeBuilder
     private PackedBinarySerializer GetSerializer()
     {
         PackedBinarySerializer s = new();
-        var nodeValueBuilder = s.AddType<NodeValue>();
+        PackedBinarySerializer.TypeBuilder nodeValueBuilder = s.AddType<NodeValue>();
         int i = 0x33;
-        foreach (var t in _valueTypes)
+        foreach (Type t in _valueTypes)
         {
             nodeValueBuilder.AddSubType(++i, t);
         }

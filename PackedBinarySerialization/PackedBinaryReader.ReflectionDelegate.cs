@@ -29,7 +29,7 @@ public ref partial struct PackedBinaryReader<TReader>
             _lock.EnterReadLock();
             try
             {
-                if (_serializers.TryGetValue(type, out var func))
+                if (_serializers.TryGetValue(type, out Delegate? func))
                 {
                     return (ReadDelegate<TOutput>)func;
                 }
@@ -42,7 +42,7 @@ public ref partial struct PackedBinaryReader<TReader>
             _lock.EnterWriteLock();
             try
             {
-                if (_serializers.TryGetValue(type, out var func))
+                if (_serializers.TryGetValue(type, out Delegate? func))
                 {
                     return (ReadDelegate<TOutput>)func;
                 }

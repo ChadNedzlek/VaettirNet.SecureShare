@@ -44,19 +44,19 @@ public class StreamBufferReader : IBufferReader<byte>
         {
             Array.Resize(ref _buffer, int.Max(_buffer.Length, sizeHint));
             _index = 0;
-            var read = _stream.ReadAtLeast(_buffer, sizeHint, throwOnEndOfStream: false);
+            int read = _stream.ReadAtLeast(_buffer, sizeHint, throwOnEndOfStream: false);
             _filled = _index + read;
             return;
         }
 
         {
-            var newBuffer = new byte[int.Max(_buffer.Length, sizeHint)];
+            byte[] newBuffer = new byte[int.Max(_buffer.Length, sizeHint)];
             _buffer.AsSpan(_index).CopyTo(newBuffer);
             _filled -= _index;
             _index = 0;
             sizeHint -= _filled;
-            var unwrittenSpan = newBuffer.AsSpan(_filled);
-            var read = _stream.ReadAtLeast(unwrittenSpan, sizeHint, throwOnEndOfStream: false);
+            Span<byte> unwrittenSpan = newBuffer.AsSpan(_filled);
+            int read = _stream.ReadAtLeast(unwrittenSpan, sizeHint, throwOnEndOfStream: false);
             _filled += read;
             _buffer = newBuffer;
         }

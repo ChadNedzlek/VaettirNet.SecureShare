@@ -39,7 +39,7 @@ public ref partial struct PackedBinaryReader<TReader>
         }
     }
 
-    public T? ReadFromMetadata<T>(PackedBinarySerializationContext ctx) => TryReadFromMetadata<T>(typeof(T), ctx, out var value)
+    public T? ReadFromMetadata<T>(PackedBinarySerializationContext ctx) => TryReadFromMetadata<T>(typeof(T), ctx, out T? value)
         ? value
         : throw new ArgumentException($"Type {typeof(T).Name} is not metadata readable");
 
@@ -213,7 +213,7 @@ public ref partial struct PackedBinaryReader<TReader>
             }
 
             WriteAllMembersDelegate<T>? writeAllMembersDelegate = null;
-            foreach (var member in targetMembers)
+            foreach (MemberInfo member in targetMembers)
             {
                 Type? memberType = ReflectionHelpers.GetMemberType(member);
                 if (memberType != null)

@@ -21,7 +21,7 @@ public class CollectionTests
         buffer.ResetWrittenCount();
         int[] expected = new []{1,2,3,4,5, -1, -200, 1_000_000};
         s.Serialize(buffer, expected, options);
-        var roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
+        int[] roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().BeEquivalentTo(expected);
     }
     
@@ -34,7 +34,7 @@ public class CollectionTests
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         buffer.ResetWrittenCount();
         s.Serialize<int[]>(buffer, null, options);
-        var roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
+        int[] roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().BeNull();
     }
     
@@ -47,7 +47,7 @@ public class CollectionTests
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         buffer.ResetWrittenCount();
         s.Serialize<int[]>(buffer, [], options);
-        var roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
+        int[] roundTrippedValue = s.Deserialize<int[]>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().BeEmpty();
     }
     

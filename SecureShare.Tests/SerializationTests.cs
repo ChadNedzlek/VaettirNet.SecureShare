@@ -53,8 +53,8 @@ public class SerializationTests
     {
         TestSignable value = new() { Value = 12345 };
         VaultCryptographyAlgorithm alg = new();
-        alg.Create(Guid.NewGuid(), out var privateInfo, out var publicInfo);
-        var signed = alg.Sign(value, privateInfo);
+        alg.Create(Guid.NewGuid(), out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo);
+        Validated<TestSignable> signed = alg.Sign(value, privateInfo);
         Span<byte> buffer = stackalloc byte[1000];
         IBinarySerializer<Signed<TestSignable>> serializer = Signed<TestSignable>.GetBinarySerializer();
         serializer.TrySerialize(signed.Signed, buffer, out int written).Should().BeTrue();

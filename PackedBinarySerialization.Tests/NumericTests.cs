@@ -39,7 +39,7 @@ public class NumericTests
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
         s.Serialize(buffer, i, options);
-        var roundTrippedValue = s.Deserialize<int>(buffer.WrittenSpan, options);
+        int roundTrippedValue = s.Deserialize<int>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().Be(i);
     }
     
@@ -53,9 +53,9 @@ public class NumericTests
         for (int i = 0; i < 1_000_000; i++)
         {
             buffer.ResetWrittenCount();
-            var target = Random.Shared.NextInt64();
+            long target = Random.Shared.NextInt64();
             s.Serialize(buffer, target, options);
-            var roundTrippedValue = s.Deserialize<long>(buffer.WrittenSpan, options);
+            long roundTrippedValue = s.Deserialize<long>(buffer.WrittenSpan, options);
             roundTrippedValue.Should().Be(target);
         }
     }

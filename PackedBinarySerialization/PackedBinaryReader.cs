@@ -123,7 +123,7 @@ public ref partial struct PackedBinaryReader<TReader>
             return ReadEnum<T>(ctx);
         }
 
-        if (_serializer.TryGetReadSurrogate(type, out var targetType, out var transform))
+        if (_serializer.TryGetReadSurrogate(type, out Type? targetType, out Delegate? transform))
         {
             return GetMember<ReadSurrogateDelegate<T>>(nameof(WriteSurrogate), type, targetType, typeof(T))
                 .Invoke(ref this, transform, ctx);

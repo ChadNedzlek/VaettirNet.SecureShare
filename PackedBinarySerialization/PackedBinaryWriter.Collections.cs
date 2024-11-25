@@ -19,7 +19,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         PackedBinarySerializationContext ctx
     )
     {
-        ref var s = ref Unsafe.As<TSpan, ReadOnlySpan<TElement>>(ref span);
+        ref ReadOnlySpan<TElement> s = ref Unsafe.As<TSpan, ReadOnlySpan<TElement>>(ref span);
         return writer.WriteSpan(s, ctx);
     }
     
@@ -49,7 +49,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         PackedBinarySerializationContext ctx
     )
     {
-        ref var s = ref Unsafe.As<TSpan, ReadOnlyMemory<TElement>>(ref span);
+        ref ReadOnlyMemory<TElement> s = ref Unsafe.As<TSpan, ReadOnlyMemory<TElement>>(ref span);
         return writer.WriteSpan(s.Span, ctx);
     }
     
@@ -64,7 +64,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         PackedBinarySerializationContext ctx
     )
     {
-        ref var s = ref Unsafe.As<TSpan, Memory<TElement>>(ref span);
+        ref Memory<TElement> s = ref Unsafe.As<TSpan, Memory<TElement>>(ref span);
         return writer.WriteSpan((ReadOnlySpan<TElement>)s.Span, ctx);
     }
 
@@ -73,7 +73,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     public int WriteSpan<T>(ReadOnlySpan<T> value, PackedBinarySerializationContext ctx)
     {
         int written = WriteInt32(value.Length, ctx with { UsePackedIntegers = true });
-        foreach (var item in value)
+        foreach (T item in value)
         {
             written += Write(item, ctx);
         }
@@ -97,7 +97,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
                 return 0;
             
             int written = 0;
-            foreach (var item in value)
+            foreach (T item in value)
             {
                 written += Write(item, itemContext);
             }
@@ -112,7 +112,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
             }
             
             int written = WriteInt32(value.Length, ctx with { UsePackedIntegers = true });
-            foreach (var item in value)
+            foreach (T item in value)
             {
                 written += Write(item, itemContext);
             }
@@ -139,7 +139,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
             }
 
             int written = 0;
-            foreach (var item in value)
+            foreach (T item in value)
             {
                 written += Write(item, itemContext);
             }
@@ -153,9 +153,9 @@ public ref partial struct PackedBinaryWriter<TWriter>
                 return WriteInt32(-1, ctx with { UsePackedIntegers = true });
             }
             
-            var array = value.ToArray();
+            T[] array = value.ToArray();
             int written = WriteInt32(array.Length, ctx with { UsePackedIntegers = true });
-            foreach (var item in array)
+            foreach (T item in array)
             {
                 written += Write(item, itemContext);
             }

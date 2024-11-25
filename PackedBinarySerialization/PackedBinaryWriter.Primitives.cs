@@ -15,8 +15,8 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
         Encoding encoding = ctx.Encoding ?? Encoding.UTF8;
         int maxByteCount = encoding.GetMaxByteCount(value.Length);
-        var sizeSize = GetNumberSize((ulong)maxByteCount);
-        var span = _writer.GetSpan(sizeSize + maxByteCount);
+        int sizeSize = GetNumberSize((ulong)maxByteCount);
+        Span<byte> span = _writer.GetSpan(sizeSize + maxByteCount);
         int read = encoding.GetBytes(value, span[sizeSize..]);
         WriteInt32(read, ctx with { MaxValue = maxByteCount, UsePackedIntegers = true});
         _writer.Advance(read);
@@ -49,7 +49,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, short value)
         {
             const int size = sizeof(short);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteInt16BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -68,7 +68,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, ushort value)
         {
             const int size = sizeof(ushort);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteUInt16BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -87,7 +87,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, int value)
         {
             const int size = sizeof(int);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteInt32BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -106,7 +106,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, uint value)
         {
             const int size = sizeof(uint);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteUInt32BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -125,7 +125,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, long value)
         {
             const int size = sizeof(long);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteInt64BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -148,7 +148,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
                 return 1;
             }
 
-            var span = writer.GetSpan(9);
+            Span<byte> span = writer.GetSpan(9);
             int c = 0;
             long tracking = maxValue ?? left;
             while (tracking is not 0 and not -1)
@@ -189,7 +189,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         int WriteCore(ref TWriter writer, ulong value)
         {
             const int size = sizeof(ulong);
-            var span = writer.GetSpan(size);
+            Span<byte> span = writer.GetSpan(size);
             BinaryPrimitives.WriteUInt64BigEndian(span, value);
             writer.Advance(size);
             return size;
@@ -199,7 +199,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     public int WriteSingle(float value, PackedBinarySerializationContext ctx)
     {
         const int size = sizeof(float);
-        var span = _writer.GetSpan(size);
+        Span<byte> span = _writer.GetSpan(size);
         BinaryPrimitives.WriteSingleBigEndian(span, value);
         _writer.Advance(size);
         return size;
@@ -208,7 +208,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
     public int WriteDouble(double value, PackedBinarySerializationContext ctx)
     {
         const int size = sizeof(double);
-        var span = _writer.GetSpan(size);
+        Span<byte> span = _writer.GetSpan(size);
         BinaryPrimitives.WriteDoubleBigEndian(span, value);
         _writer.Advance(size);
         return size;
@@ -228,7 +228,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteGuid(Guid guid, PackedBinarySerializationContext ctx)
     {
-        var span = _writer.GetSpan(16);
+        Span<byte> span = _writer.GetSpan(16);
         guid.TryWriteBytes(span, bigEndian: false, out _);
         _writer.Advance(16);
         return 16;

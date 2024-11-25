@@ -139,7 +139,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
             return writer.WriteEnum(value, ctx);
         }
 
-        if (writer._serializer.TryGetWriteSurrogate(typeof(T), out var targetType, out var transformDelegate))
+        if (writer._serializer.TryGetWriteSurrogate(typeof(T), out Type targetType, out Delegate transformDelegate))
         {
             return typeof(PackedBinaryWriter<TWriter>)
                 .GetMethod(nameof(WriteSurrogate), BindingFlags.Static | BindingFlags.NonPublic)!

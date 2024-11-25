@@ -22,8 +22,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static short ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(2);
-            var ret = BinaryPrimitives.ReadInt16BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(2);
+            short ret = BinaryPrimitives.ReadInt16BigEndian(span);
             reader.Advance(2);
             return ret;
         }
@@ -38,8 +38,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static int ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(4);
-            var ret = BinaryPrimitives.ReadInt32BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(4);
+            int ret = BinaryPrimitives.ReadInt32BigEndian(span);
             reader.Advance(4);
             return ret;
         }
@@ -54,15 +54,15 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static long ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(8);
-            var ret = BinaryPrimitives.ReadInt64BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(8);
+            long ret = BinaryPrimitives.ReadInt64BigEndian(span);
             reader.Advance(8);
             return ret;
         }
 
         static long ReadPacked(ref TReader reader)
         {
-            var span = reader.GetSpan(10);
+            ReadOnlySpan<byte> span = reader.GetSpan(10);
             byte b = span[0];
             bool move = (b & 0x80) != 0;
             if (!move)
@@ -88,8 +88,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
     public byte ReadByte(PackedBinarySerializationContext ctx)
     {
-        var span = _reader.GetSpan(1);
-        var ret = span[0];
+        ReadOnlySpan<byte> span = _reader.GetSpan(1);
+        byte ret = span[0];
         _reader.Advance(1);
         return ret;
     }
@@ -103,8 +103,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static ushort ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(2);
-            var ret = BinaryPrimitives.ReadUInt16BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(2);
+            ushort ret = BinaryPrimitives.ReadUInt16BigEndian(span);
             reader.Advance(2);
             return ret;
         }
@@ -119,8 +119,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static uint ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(4);
-            var ret = BinaryPrimitives.ReadUInt32BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(4);
+            uint ret = BinaryPrimitives.ReadUInt32BigEndian(span);
             reader.Advance(4);
             return ret;
         }
@@ -135,8 +135,8 @@ public ref partial struct PackedBinaryReader<TReader>
 
         static ulong ReadCore(ref TReader reader)
         {
-            var span = reader.GetSpan(8);
-            var ret = BinaryPrimitives.ReadUInt64BigEndian(span);
+            ReadOnlySpan<byte> span = reader.GetSpan(8);
+            ulong ret = BinaryPrimitives.ReadUInt64BigEndian(span);
             reader.Advance(8);
             return ret;
         }
@@ -144,16 +144,16 @@ public ref partial struct PackedBinaryReader<TReader>
 
     public float ReadSingle(PackedBinarySerializationContext ctx)
     {
-        var span = _reader.GetSpan(sizeof(float));
-        var ret = BinaryPrimitives.ReadSingleBigEndian(span);
+        ReadOnlySpan<byte> span = _reader.GetSpan(sizeof(float));
+        float ret = BinaryPrimitives.ReadSingleBigEndian(span);
         _reader.Advance(sizeof(float));
         return ret;
     }
 
     public double ReadDouble(PackedBinarySerializationContext ctx)
     {
-        var span = _reader.GetSpan(sizeof(double));
-        var ret = BinaryPrimitives.ReadDoubleBigEndian(span);
+        ReadOnlySpan<byte> span = _reader.GetSpan(sizeof(double));
+        double ret = BinaryPrimitives.ReadDoubleBigEndian(span);
         _reader.Advance(sizeof(double));
         return ret;
     }
@@ -185,7 +185,7 @@ public ref partial struct PackedBinaryReader<TReader>
 
     public Guid ReadGuid(PackedBinarySerializationContext ctx)
     {
-        var value = new Guid(_reader.GetSpan(16)[..16], bigEndian: false);
+        Guid value = new Guid(_reader.GetSpan(16)[..16], bigEndian: false);
         _reader.Advance(16);
         return value;
     }

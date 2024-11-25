@@ -38,7 +38,7 @@ public class VaultConflictResolver
     public bool TryAutoResolveConflicts(VaultConflictResult result, RefSigner signer, out ValidatedVaultDataSnapshot data)
     {
         LiveVaultData liveVault = LiveVaultData.FromSnapshot(result.BaseVault);
-        foreach (var item in result.Items)
+        foreach (VaultConflictItem? item in result.Items)
         {
             if (!item.TryGetAutoResolution(out VaultResolutionItem? resolution))
             {
@@ -66,14 +66,14 @@ public class VaultConflictResolver
             {
                 OneOf<VaultClientEntry, BlockedVaultClientEntry> localClient = local.GetClientEntry(id);
 
-                if (remote.TryGetClientEntry(id, out var remoteClientEntry) && localClient.Equals(remoteClientEntry))
+                if (remote.TryGetClientEntry(id, out OneOf<VaultClientEntry, BlockedVaultClientEntry> remoteClientEntry) && localClient.Equals(remoteClientEntry))
                 {
                     // We have the same client entry, we can skip it
                     continue;
                 }
 
                 ImmutableList<Validated<ClientModificationRecord>> localModificationRecords = local.GetModificationRecords(id);
-                if (!original.TryGetClientEntry(id, out var originalClient))
+                if (!original.TryGetClientEntry(id, out OneOf<VaultClientEntry, BlockedVaultClientEntry> originalClient))
                 {
                     // Adding a client is fine
                     localClient.Map(
@@ -145,15 +145,15 @@ public class VaultConflictResolver
                 HashSet<Guid> secretIds = localVault.Secrets.Select(s => s.Id).Concat(localVault.RemovedSecrets.Select(s => s.Id)).ToHashSet();
                 foreach (Guid id in secretIds)
                 {
-                    var localEntry = localVault.GetSecretEntry(id);
+                    OneOf<UntypedSealedSecret, RemovedSecretRecord> localEntry = localVault.GetSecretEntry(id);
 
-                    if (remoteVault.TryGetSecretEntry(id, out var remoteEntry) && localEntry.Equals(remoteEntry))
+                    if (remoteVault.TryGetSecretEntry(id, out OneOf<UntypedSealedSecret, RemovedSecretRecord> remoteEntry) && localEntry.Equals(remoteEntry))
                     {
                         // We have the same secret entry, we can skip it
                         continue;
                     }
 
-                    if (originalVault == null || !originalVault.TryGetSecretEntry(id, out var originalEntry))
+                    if (originalVault == null || !originalVault.TryGetSecretEntry(id, out OneOf<UntypedSealedSecret, RemovedSecretRecord> originalEntry))
                     {
                         // Adding a client is fine
                         localEntry.Map(

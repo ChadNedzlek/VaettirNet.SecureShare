@@ -33,11 +33,11 @@ public class PartialVaultConflictResolution
 
     public PartialVaultConflictResolution WithAutoResolutions()
     {
-        var res = _resolutions.ToBuilder();
-        for (var i = 0; i < _items.Count; i++)
+        ImmutableArray<VaultResolutionItem>.Builder? res = _resolutions.ToBuilder();
+        for (int i = 0; i < _items.Count; i++)
         {
             VaultConflictItem item = _items[i];
-            if (item.TryGetAutoResolution(out var r))
+            if (item.TryGetAutoResolution(out VaultResolutionItem? r))
             {
                 res[i] = r;
             }
@@ -52,7 +52,7 @@ public class PartialVaultConflictResolution
 
     public bool TryGetNextUnresolved([MaybeNullWhen(false)] out VaultConflictItem conflict)
     {
-        for (var i = 0; i < _items.Count; i++)
+        for (int i = 0; i < _items.Count; i++)
         {
             if (_resolutions[i] == null)
             {
