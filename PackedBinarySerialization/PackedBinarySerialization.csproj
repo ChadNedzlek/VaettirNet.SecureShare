@@ -6,30 +6,30 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Update="PackedBinaryWriter.Primitives.cs">
-        <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryReader.Primitives.cs">
-        <DependentUpon>PackedBinaryReader.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryWriter.Collections.cs">
-        <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryWriter.ReflectionDelegate.cs">
-        <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryReader.Collections.cs">
-        <DependentUpon>PackedBinaryReader.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryReader.ReflectionDelegate.cs">
-        <DependentUpon>PackedBinaryReader.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryWriter.Dynamic.cs">
-        <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
-      </Compile>
-      <Compile Update="PackedBinaryReader.Dynamic.cs">
-        <DependentUpon>PackedBinaryReader.cs</DependentUpon>
-      </Compile>
+        <Compile Update="PackedBinaryWriter.Primitives.cs">
+            <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryReader.Primitives.cs">
+            <DependentUpon>PackedBinaryReader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryWriter.Collections.cs">
+            <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryWriter.ReflectionDelegate.cs">
+            <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryReader.Collections.cs">
+            <DependentUpon>PackedBinaryReader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryReader.ReflectionDelegate.cs">
+            <DependentUpon>PackedBinaryReader.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryWriter.Dynamic.cs">
+            <DependentUpon>PackedBinaryWriter.cs</DependentUpon>
+        </Compile>
+        <Compile Update="PackedBinaryReader.Dynamic.cs">
+            <DependentUpon>PackedBinaryReader.cs</DependentUpon>
+        </Compile>
     </ItemGroup>
 
 </Project>

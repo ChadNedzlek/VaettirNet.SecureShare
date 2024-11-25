@@ -9,13 +9,13 @@ namespace VaettirNet.PackedBinarySerialization;
 public ref partial struct PackedBinaryWriter<TWriter>
 {
     public delegate int WriteDelegate<in TInput>(scoped ref PackedBinaryWriter<TWriter> writer, TInput input, PackedBinarySerializationContext ctx);
-    
+
     private class WriteReflectionDelegate
     {
-        private readonly string _name;
         private readonly ReaderWriterLockSlim _lock = new();
+        private readonly Func<Type, Type[]> _methodArgs;
+        private readonly string _name;
         private readonly Dictionary<Type, Delegate> _serializers = [];
-        private readonly Func<Type, Type[]> _methodArgs; 
 
         public WriteReflectionDelegate(string name, Func<Type, Type[]> getTypes = null)
         {
@@ -28,10 +28,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
             _lock.EnterReadLock();
             try
             {
-                if (_serializers.TryGetValue(type, out Delegate func))
-                {
-                    return (WriteDelegate<TInput>)func;
-                }
+                if (_serializers.TryGetValue(type, out Delegate func)) return (WriteDelegate<TInput>)func;
             }
             finally
             {
@@ -41,21 +38,15 @@ public ref partial struct PackedBinaryWriter<TWriter>
             _lock.EnterWriteLock();
             try
             {
-                if (_serializers.TryGetValue(type, out Delegate func))
-                {
-                    return (WriteDelegate<TInput>)func;
-                }
+                if (_serializers.TryGetValue(type, out Delegate func)) return (WriteDelegate<TInput>)func;
 
                 MethodInfo methodInfo = typeof(PackedBinaryWriter<TWriter>)
                     .GetMethod(_name, BindingFlags.Static | BindingFlags.NonPublic)!;
 
-                if (methodInfo.IsGenericMethod)
-                {
-                    methodInfo = methodInfo.MakeGenericMethod(_methodArgs(type));
-                }
+                if (methodInfo.IsGenericMethod) methodInfo = methodInfo.MakeGenericMethod(_methodArgs(type));
 
                 var callback = methodInfo.CreateDelegate<WriteDelegate<TInput>>();
-            
+
                 _serializers.Add(type, callback);
                 return callback;
             }

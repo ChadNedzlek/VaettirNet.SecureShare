@@ -15,9 +15,7 @@ public ref partial struct PackedBinaryReader<TReader>
         if (type.GetCustomAttribute<PackedBinarySerializableAttribute>() is not null ||
             _serializer.GetTagSubtypes(type) is not null ||
             ctx.TagMap is not null)
-        {
             return SerializeObject(ref this, out value);
-        }
 
         value = default;
         return false;
@@ -39,9 +37,12 @@ public ref partial struct PackedBinaryReader<TReader>
         }
     }
 
-    public T? ReadFromMetadata<T>(PackedBinarySerializationContext ctx) => TryReadFromMetadata<T>(typeof(T), ctx, out T? value)
-        ? value
-        : throw new ArgumentException($"Type {typeof(T).Name} is not metadata readable");
+    public T? ReadFromMetadata<T>(PackedBinarySerializationContext ctx)
+    {
+        return TryReadFromMetadata(typeof(T), ctx, out T? value)
+            ? value
+            : throw new ArgumentException($"Type {typeof(T).Name} is not metadata readable");
+    }
 
     private static Action<TObj, TMember>? GetMemberAccess<TObj, TMember>(MemberInfo member)
     {
@@ -52,7 +53,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 // Re-lookup the value because private members are only available on the declaring type, not any derived types
                 p.DeclaringType!.GetProperty(p.Name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetSetMethod(true)!
                     .CreateDelegate<Action<TObj, TMember>>(),
-            _ => null,
+            _ => null
         };
 
         Action<TObj, TMember> BuildFieldSetter(FieldInfo fieldInfo)
@@ -73,15 +74,18 @@ public ref partial struct PackedBinaryReader<TReader>
             .Invoke(ref this, ctx);
     }
 
-    private delegate T? ReadFromMetadataCoreStaticDelegate<out T>(scoped ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx);
+    private delegate T? ReadFromMetadataCoreStaticDelegate<out T>(
+        scoped ref PackedBinaryReader<TReader> reader,
+        PackedBinarySerializationContext ctx
+    );
 
-    private static TOut? ReadFromMetadataCoreStaticTypeCast<TIn, TOut>(scoped ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
+    private static TOut? ReadFromMetadataCoreStaticTypeCast<TIn, TOut>(
+        scoped ref PackedBinaryReader<TReader> reader,
+        PackedBinarySerializationContext ctx
+    )
     {
         TIn? value = reader.ReadFromMetadataAsType<TIn>(ctx);
-        if (value is null)
-        {
-            return default;
-        }
+        if (value is null) return default;
 
         ref TOut refT = ref Unsafe.As<TIn, TOut>(ref value);
         return refT;
@@ -89,18 +93,15 @@ public ref partial struct PackedBinaryReader<TReader>
 
 
     private static readonly DelegateCache<PackedBinaryReader<TReader>, Type, ReadTypeCallback> s_tagDelegates = new();
-    
+
     private delegate Type? ReadTypeCallback(scoped ref PackedBinaryReader<TReader> reader);
-    
+
     private T? ReadFromMetadataAsType<T>(PackedBinarySerializationContext ctx)
     {
         ReadTypeCallback callback = s_tagDelegates.GetOrCreate(ref this, typeof(T), CreateCallback);
         Type? instanceType = callback(ref this);
 
-        if (instanceType is null)
-        {
-            return default;
-        }
+        if (instanceType is null) return default;
 
 #nullable disable
         return ReadMembers<T>(instanceType, ctx);
@@ -109,7 +110,7 @@ public ref partial struct PackedBinaryReader<TReader>
         {
             Dictionary<int, Type> tagToType = key.GetCustomAttributes<PackedBinaryIncludeTypeAttribute>().ToDictionary(a => a.Tag, a => a.Type);
             return GetTypeFromTag;
-            
+
             Type? GetTypeFromTag(scoped ref PackedBinaryReader<TReader> reader)
             {
                 if (key.IsValueType)
@@ -125,33 +126,22 @@ public ref partial struct PackedBinaryReader<TReader>
 
                 Type? type = null;
                 if (tag == 0)
-                {
                     type = key;
-                }
                 else if (ctx.TagMap is { } ctxMap && ctxMap.TryGetType(tag, out Type? ctxType))
-                {
                     type = ctxType;
-                }
                 else if (reader._serializer.GetTagSubtypes(key) is { } sMap && sMap.TryGetValue(tag, out Type? sType))
-                {
                     type = sType;
-                }
-                else if (tagToType.TryGetValue(tag, out Type? aType))
-                {
-                    type = aType;
-                }
+                else if (tagToType.TryGetValue(tag, out Type? aType)) type = aType;
 
-                if (type is null)
-                {
-                    throw new ArgumentException($"Unable to transform tag {tag} while reading type {typeof(T).Name}");
-                }
+                if (type is null) throw new ArgumentException($"Unable to transform tag {tag} while reading type {typeof(T).Name}");
 
                 return type;
             }
         }
     }
 
-    private static TBase Construct<TBase, TDerived>() where TDerived : TBase
+    private static TBase Construct<TBase, TDerived>()
+        where TDerived : TBase
     {
         try
         {
@@ -164,32 +154,35 @@ public ref partial struct PackedBinaryReader<TReader>
     }
 
     private static readonly DelegateCache<PackedBinaryReader<TReader>, (Type baseType, Type derivedType), Delegate> s_constructCache = new();
-    
+
     private T ReadMembers<T>(Type targetType, PackedBinarySerializationContext ctx)
         where T : notnull
     {
         var create = (Func<T>)s_constructCache.GetOrCreate(
-                ref this,
-                (typeof(T), targetType),
-                ((Type baseType, Type derivedType) types, ref PackedBinaryReader<TReader> r) =>
-                    GetMember<Func<T>>(nameof(Construct), types.baseType, types.derivedType)
-            );
+            ref this,
+            (typeof(T), targetType),
+            ((Type baseType, Type derivedType) types, ref PackedBinaryReader<TReader> _) =>
+                GetMember<Func<T>>(nameof(Construct), types.baseType, types.derivedType)
+        );
         T instance = create();
         PopulateMembers(targetType, instance, ctx);
         return instance;
     }
 
-    private static readonly DelegateCache<PackedBinaryReader<TReader>, (Type returnType, Type targetType, Type instanceType), Delegate> s_writeMembersCache = new();
-    
+    private static readonly DelegateCache<PackedBinaryReader<TReader>, (Type returnType, Type targetType, Type instanceType), Delegate>
+        s_writeMembersCache = new();
+
     private void PopulateMembers<T>(Type targetType, T instance, PackedBinarySerializationContext ctx)
         where T : notnull
     {
         if (!targetType.IsAssignableTo(typeof(T)))
-        {
             throw new ArgumentException($"Type {targetType.Name} is not assignable to {typeof(T).Name}", nameof(targetType));
-        }
 
-        var combinedSetters = (WriteAllMembersDelegate<T>)s_writeMembersCache.GetOrCreate(ref this, (typeof(T), targetType, instance.GetType()), BuildWriterDelegate);
+        var combinedSetters = (WriteAllMembersDelegate<T>)s_writeMembersCache.GetOrCreate(
+            ref this,
+            (typeof(T), targetType, instance.GetType()),
+            BuildWriterDelegate
+        );
         combinedSetters(ref this, instance, ctx);
 
         return;
@@ -197,20 +190,18 @@ public ref partial struct PackedBinaryReader<TReader>
         static Delegate BuildWriterDelegate((Type returnType, Type targetType, Type instanceType) key, ref PackedBinaryReader<TReader> reader)
         {
             PackedBinarySerializableAttribute attr = key.targetType.GetCustomAttribute<PackedBinarySerializableAttribute>() ??
-                    reader._serializer.GetEffectiveSerializableAttribute(key.targetType)!;
+                reader._serializer.GetEffectiveSerializableAttribute(key.targetType)!;
 
             IEnumerable<MemberInfo> targetMembers = key.targetType.GetMembers(
                     BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
                 )
                 .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
             if (!attr.SequentialMembers)
-            {
                 targetMembers = targetMembers
                     .Select(member => (member, attr: member.GetCustomAttribute<PackedBinaryMemberAttribute>()))
                     .Where(x => x.attr is not null)
                     .OrderBy(x => x.attr!.Order)
                     .Select(x => x.member);
-            }
 
             WriteAllMembersDelegate<T>? writeAllMembersDelegate = null;
             foreach (MemberInfo member in targetMembers)
@@ -218,7 +209,12 @@ public ref partial struct PackedBinaryReader<TReader>
                 Type? memberType = ReflectionHelpers.GetMemberType(member);
                 if (memberType != null)
                 {
-                    WriteMemberDelegate<T> setter = GetMember<WriteMemberDelegate<T>>(nameof(WriteMemberTypeCast), key.instanceType, key.returnType, memberType);
+                    WriteMemberDelegate<T> setter = GetMember<WriteMemberDelegate<T>>(
+                        nameof(WriteMemberTypeCast),
+                        key.instanceType,
+                        key.returnType,
+                        memberType
+                    );
                     writeAllMembersDelegate += (scoped ref PackedBinaryReader<TReader> r, T i, PackedBinarySerializationContext c) =>
                     {
                         setter(ref r, i, member, c);
@@ -226,7 +222,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 }
             }
 
-            return writeAllMembersDelegate ?? delegate {  };
+            return writeAllMembersDelegate ?? delegate { };
         }
     }
 
@@ -261,7 +257,11 @@ public ref partial struct PackedBinaryReader<TReader>
         PackedBinarySerializationContext ctx
     )
     {
-        Func<MemberInfo, Action<TIn, TMember>> getSetter = GetMember<Func<MemberInfo, Action<TIn, TMember>>>(nameof(GetMemberAccess), typeof(TIn), typeof(TMember));
+        Func<MemberInfo, Action<TIn, TMember>> getSetter = GetMember<Func<MemberInfo, Action<TIn, TMember>>>(
+            nameof(GetMemberAccess),
+            typeof(TIn),
+            typeof(TMember)
+        );
         Action<TIn, TMember> setter = getSetter(member);
         setter(instance, reader.Read<TMember>(ctx));
     }

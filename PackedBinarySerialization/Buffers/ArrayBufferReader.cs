@@ -15,7 +15,7 @@ public class ArrayBufferReader<T> : IBufferReader<T>
     public ReadOnlySpan<T> GetSpan(int sizeHint)
     {
         if (sizeHint > _buffer.Length - _index)
-            return _buffer[_index..];
+            return _buffer.AsSpan(_index);
 
         return _buffer.AsSpan(_index, sizeHint);
     }
@@ -23,7 +23,7 @@ public class ArrayBufferReader<T> : IBufferReader<T>
     public ReadOnlyMemory<T> GetMemory(int sizeHint)
     {
         if (sizeHint > _buffer.Length - _index)
-            return _buffer[_index..];
+            return _buffer.AsMemory(_index);
 
         return _buffer.AsMemory(_index, sizeHint);
     }

@@ -6,11 +6,15 @@ namespace VaettirNet.PackedBinarySerialization;
 
 public static class ReflectionHelpers
 {
-    public static Type? GetMemberType(MemberInfo member) => member switch {
-        FieldInfo fieldInfo => fieldInfo.FieldType,
-        PropertyInfo propertyInfo => propertyInfo.PropertyType,
-        _ => null,
-    };
+    public static Type? GetMemberType(MemberInfo member)
+    {
+        return member switch
+        {
+            FieldInfo fieldInfo => fieldInfo.FieldType,
+            PropertyInfo propertyInfo => propertyInfo.PropertyType,
+            _ => null
+        };
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TOut As<TIn, TOut>(TIn value)

@@ -9,7 +9,7 @@ namespace VaettirNet.PackedBinarySerialization;
 public ref partial struct PackedBinaryReader<TReader>
     where TReader : IBufferReader<byte>, allows ref struct
 {
-    private PackedBinarySerializer _serializer;
+    private readonly PackedBinarySerializer _serializer;
     private TReader _reader;
 
     public PackedBinaryReader(PackedBinarySerializer serializer, TReader reader)
@@ -19,7 +19,10 @@ public ref partial struct PackedBinaryReader<TReader>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    public T Read<T>(PackedBinarySerializationContext ctx) => Read<T>(typeof(T), ctx);
+    public T Read<T>(PackedBinarySerializationContext ctx)
+    {
+        return Read<T>(typeof(T), ctx);
+    }
 
     private delegate TOut ReadSurrogateDelegate<out TOut>(
         scoped ref PackedBinaryReader<TReader> reader,
@@ -43,126 +46,74 @@ public ref partial struct PackedBinaryReader<TReader>
     public T Read<T>(Type type, PackedBinarySerializationContext ctx)
         where T : allows ref struct
     {
-        if (type == typeof(void))
-        {
-            return default!;
-        }
+        if (type == typeof(void)) return default!;
 
-        if (type == typeof(sbyte))
-        {
-            return ReflectionHelpers.As<sbyte, T>(ReadSByte(ctx));
-        }
+        if (type == typeof(sbyte)) return ReflectionHelpers.As<sbyte, T>(ReadSByte(ctx));
 
-        if (type == typeof(short))
-        {
-            return ReflectionHelpers.As<short, T>(ReadInt16(ctx));
-        }
+        if (type == typeof(short)) return ReflectionHelpers.As<short, T>(ReadInt16(ctx));
 
-        if (type == typeof(int))
-        {
-            return ReflectionHelpers.As<int, T>(ReadInt32(ctx));
-        }
+        if (type == typeof(int)) return ReflectionHelpers.As<int, T>(ReadInt32(ctx));
 
-        if (type == typeof(long))
-        {
-            return ReflectionHelpers.As<long, T>(ReadInt64(ctx));
-        }
+        if (type == typeof(long)) return ReflectionHelpers.As<long, T>(ReadInt64(ctx));
 
-        if (type == typeof(byte))
-        {
-            return ReflectionHelpers.As<byte, T>(ReadByte(ctx));
-        }
+        if (type == typeof(byte)) return ReflectionHelpers.As<byte, T>(ReadByte(ctx));
 
-        if (type == typeof(ushort))
-        {
-            return ReflectionHelpers.As<ushort, T>(ReadUInt16(ctx));
-        }
+        if (type == typeof(ushort)) return ReflectionHelpers.As<ushort, T>(ReadUInt16(ctx));
 
-        if (type == typeof(uint))
-        {
-            return ReflectionHelpers.As<uint, T>(ReadUInt32(ctx));
-        }
+        if (type == typeof(uint)) return ReflectionHelpers.As<uint, T>(ReadUInt32(ctx));
 
-        if (type == typeof(ulong))
-        {
-            return ReflectionHelpers.As<ulong, T>(ReadUInt64(ctx));
-        }
+        if (type == typeof(ulong)) return ReflectionHelpers.As<ulong, T>(ReadUInt64(ctx));
 
-        if (type == typeof(float))
-        {
-            return ReflectionHelpers.As<float, T>(ReadSingle(ctx));
-        }
+        if (type == typeof(float)) return ReflectionHelpers.As<float, T>(ReadSingle(ctx));
 
-        if (type == typeof(double))
-        {
-            return ReflectionHelpers.As<double, T>(ReadDouble(ctx));
-        }
+        if (type == typeof(double)) return ReflectionHelpers.As<double, T>(ReadDouble(ctx));
 
-        if (type == typeof(string))
-        {
-            return ReflectionHelpers.As<string, T>(ReadString(ctx)!);
-        }
+        if (type == typeof(string)) return ReflectionHelpers.As<string, T>(ReadString(ctx)!);
 
-        if (type == typeof(bool))
-        {
-            return ReflectionHelpers.As<bool, T>(ReadBool(ctx));
-        }
+        if (type == typeof(bool)) return ReflectionHelpers.As<bool, T>(ReadBool(ctx));
 
-        if (type == typeof(char))
-        {
-            return ReflectionHelpers.As<char, T>(ReadChar(ctx));
-        }
+        if (type == typeof(char)) return ReflectionHelpers.As<char, T>(ReadChar(ctx));
 
-        if (type == typeof(Guid))
-        {
-            return ReflectionHelpers.As<Guid, T>(ReadGuid(ctx));
-        }
+        if (type == typeof(Guid)) return ReflectionHelpers.As<Guid, T>(ReadGuid(ctx));
 
-        if (type.IsEnum)
-        {
-            return ReadEnum<T>(ctx);
-        }
+        if (type.IsEnum) return ReadEnum<T>(ctx);
 
         if (_serializer.TryGetReadSurrogate(type, out Type? targetType, out Delegate? transform))
-        {
             return GetMember<ReadSurrogateDelegate<T>>(nameof(WriteSurrogate), type, targetType, typeof(T))
                 .Invoke(ref this, transform, ctx);
-        }
 
         if (!type.IsValueType)
         {
             object? refValue = ReadRefType(type, ctx);
             if (refValue is null)
                 return default!;
-            
+
             return ReflectionHelpers.As<object?, T>(refValue);
         }
 
         if (type.IsGenericType)
         {
             Type genericTypeDefinition = type.GetGenericTypeDefinition();
-            if (genericTypeDefinition == typeof(Memory<>))
-            {
-                return ReadRecastMemory<T>(ctx);
-            }
+            if (genericTypeDefinition == typeof(Memory<>)) return ReadRecastMemory<T>(ctx);
 
-            if (genericTypeDefinition == typeof(ReadOnlyMemory<>))
-            {
-                return ReadRecastReadOnlyMemory<T>(ctx);
-            }
+            if (genericTypeDefinition == typeof(ReadOnlyMemory<>)) return ReadRecastReadOnlyMemory<T>(ctx);
 
-            if (genericTypeDefinition == typeof(ImmutableArray<>))
-            {
-                return ReadRecastImmutableArray<T>(ctx);
-            }
+            if (genericTypeDefinition == typeof(ImmutableArray<>)) return ReadRecastImmutableArray<T>(ctx);
         }
 
         ThrowUnknownType(type);
         return default;
     }
 
-    public ReadOnlySpan<byte> GetSpan(int sizeHint) => _reader.GetSpan(sizeHint);
-    public void Advance(int consumed) => _reader.Advance(consumed);
+    public ReadOnlySpan<byte> GetSpan(int sizeHint)
+    {
+        return _reader.GetSpan(sizeHint);
+    }
+
+    public void Advance(int consumed)
+    {
+        _reader.Advance(consumed);
+    }
 
     [DoesNotReturn]
     private void ThrowUnknownType(Type type)
@@ -178,18 +129,18 @@ public ref partial struct PackedBinaryReader<TReader>
         if (TryReadFromMetadata(type, ctx, out written)) return written;
         if (TryReadImmutableList(type, ctx, out written)) return written;
         if (TryReadImmutableSortedSet(type, ctx, out written)) return written;
-            
+
         ThrowUnknownType(type);
         return default;
     }
 
-    private ReflectionDelegate s_serializable = new ReflectionDelegate(nameof(ReadSerializable));
-    
+    private static readonly ReflectionDelegate s_serializable = new(nameof(ReadSerializable));
+
     private bool TryReadSerializable(Type type, PackedBinarySerializationContext ctx, out object? written)
     {
         if (type.GetInterfaces()
                 .Where(i => i.IsGenericType)
-                .FirstOrDefault(i => i.GetGenericTypeDefinition() == typeof(IPackedBinarySerializable<>)) is {} serializable)
+                .FirstOrDefault(i => i.GetGenericTypeDefinition() == typeof(IPackedBinarySerializable<>)) is { } serializable)
         {
             written = s_serializable.GetSerializer<object>(serializable).Invoke(ref this, ctx);
             return true;
@@ -198,10 +149,12 @@ public ref partial struct PackedBinaryReader<TReader>
         written = null;
         return false;
     }
-    
+
     private static T ReadSerializable<T>(ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
-        where T : IPackedBinarySerializable<T> =>
-        reader.ReadSerializable<T>(ctx);
+        where T : IPackedBinarySerializable<T>
+    {
+        return reader.ReadSerializable<T>(ctx);
+    }
 
     public T ReadSerializable<T>(PackedBinarySerializationContext ctx)
         where T : IPackedBinarySerializable<T>
@@ -209,10 +162,7 @@ public ref partial struct PackedBinaryReader<TReader>
         if (!typeof(T).IsValueType)
         {
             bool nonNull = ReadBool(ctx);
-            if (!nonNull)
-            {
-                return default!;
-            }
+            if (!nonNull) return default!;
         }
 
         return T.Read(ref this, ctx);

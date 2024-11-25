@@ -8,7 +8,7 @@ internal class DelegateCache<TRef, TKey, TValue>
     where TKey : notnull
 {
     public delegate TValue CreateCallback(TKey key, scoped ref TRef refType);
-        
+
     private readonly Dictionary<TKey, TValue> _cache = [];
     private readonly ReaderWriterLockSlim _lock = new();
 
@@ -17,23 +17,17 @@ internal class DelegateCache<TRef, TKey, TValue>
         _lock.EnterReadLock();
         try
         {
-            if (_cache.TryGetValue(key, out TValue? value))
-            {
-                return value;
-            }
+            if (_cache.TryGetValue(key, out TValue? value)) return value;
         }
         finally
         {
             _lock.ExitReadLock();
         }
-            
+
         _lock.EnterWriteLock();
         try
         {
-            if (_cache.TryGetValue(key, out TValue? value))
-            {
-                return value;
-            }
+            if (_cache.TryGetValue(key, out TValue? value)) return value;
 
             _cache.Add(key, value = create(key, ref refType));
             return value;

@@ -71,7 +71,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 return (sbyte)(b << 1) >> 1;
             }
 
-            long value = (sbyte)((sbyte)b << 1 & 0xFF) >> 1;
+            long value = (sbyte)(((sbyte)b << 1) & 0xFF) >> 1;
             int i = 0;
             while (move)
             {
@@ -185,7 +185,7 @@ public ref partial struct PackedBinaryReader<TReader>
 
     public Guid ReadGuid(PackedBinarySerializationContext ctx)
     {
-        Guid value = new Guid(_reader.GetSpan(16)[..16], bigEndian: false);
+        Guid value = new(_reader.GetSpan(16)[..16], false);
         _reader.Advance(16);
         return value;
     }
@@ -196,6 +196,7 @@ public ref partial struct PackedBinaryReader<TReader>
     }
 
     private static readonly ReflectionDelegate s_enum = new(nameof(ReadEnumRecast), t => [t, t.GetEnumUnderlyingType()]);
+
     public TEnum ReadEnum<TEnum>(PackedBinarySerializationContext ctx)
         where TEnum : allows ref struct
     {

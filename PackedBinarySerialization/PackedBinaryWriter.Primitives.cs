@@ -8,17 +8,14 @@ public ref partial struct PackedBinaryWriter<TWriter>
 {
     public int WriteString(string? value, PackedBinarySerializationContext ctx)
     {
-        if (value == null)
-        {
-            return WriteInt32(-1, ctx with { UsePackedIntegers = true });
-        }
+        if (value == null) return WriteInt32(-1, ctx with { UsePackedIntegers = true });
 
         Encoding encoding = ctx.Encoding ?? Encoding.UTF8;
         int maxByteCount = encoding.GetMaxByteCount(value.Length);
         int sizeSize = GetNumberSize((ulong)maxByteCount);
         Span<byte> span = _writer.GetSpan(sizeSize + maxByteCount);
         int read = encoding.GetBytes(value, span[sizeSize..]);
-        WriteInt32(read, ctx with { MaxValue = maxByteCount, UsePackedIntegers = true});
+        WriteInt32(read, ctx with { MaxValue = maxByteCount, UsePackedIntegers = true });
         _writer.Advance(read);
         return sizeSize + read;
     }
@@ -39,10 +36,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteInt16(short value, PackedBinarySerializationContext ctx)
     {
-        if (ctx.UsePackedIntegers)
-        {
-            return WriteInt64(value, ctx);
-        }
+        if (ctx.UsePackedIntegers) return WriteInt64(value, ctx);
 
         return WriteCore(ref _writer, value);
 
@@ -58,10 +52,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteUInt16(ushort value, PackedBinarySerializationContext ctx)
     {
-        if (ctx.UsePackedIntegers)
-        {
-            return WriteInt64(value, ctx);
-        }
+        if (ctx.UsePackedIntegers) return WriteInt64(value, ctx);
 
         return WriteCore(ref _writer, value);
 
@@ -77,10 +68,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteInt32(int value, PackedBinarySerializationContext ctx)
     {
-        if (ctx.UsePackedIntegers)
-        {
-            return WriteInt64(value, ctx);
-        }
+        if (ctx.UsePackedIntegers) return WriteInt64(value, ctx);
 
         return WriteCore(ref _writer, value);
 
@@ -96,10 +84,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteUInt32(uint value, PackedBinarySerializationContext ctx)
     {
-        if (ctx.UsePackedIntegers)
-        {
-            return WriteInt64(value, ctx);
-        }
+        if (ctx.UsePackedIntegers) return WriteInt64(value, ctx);
 
         return WriteCore(ref _writer, value);
 
@@ -115,10 +100,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteInt64(long value, PackedBinarySerializationContext ctx)
     {
-        if (!ctx.UsePackedIntegers)
-        {
-            return WriteCore(ref _writer, value);
-        }
+        if (!ctx.UsePackedIntegers) return WriteCore(ref _writer, value);
 
         return WritePacked(ref _writer, value, ctx.MaxValue);
 
@@ -179,10 +161,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
     public int WriteUInt64(ulong value, PackedBinarySerializationContext ctx)
     {
-        if (ctx.UsePackedIntegers)
-        {
-            return WriteInt64((long)value, ctx);
-        }
+        if (ctx.UsePackedIntegers) return WriteInt64((long)value, ctx);
 
         return WriteCore(ref _writer, value);
 
@@ -229,29 +208,23 @@ public ref partial struct PackedBinaryWriter<TWriter>
     public int WriteGuid(Guid guid, PackedBinarySerializationContext ctx)
     {
         Span<byte> span = _writer.GetSpan(16);
-        guid.TryWriteBytes(span, bigEndian: false, out _);
+        guid.TryWriteBytes(span, false, out _);
         _writer.Advance(16);
         return 16;
     }
 
-    private delegate int WriteRecastEnumStaticDelegate<in TEnum>(
-        scoped ref PackedBinaryWriter<TWriter> writer,
-        TEnum value,
-        PackedBinarySerializationContext ctx
-    )
-        where TEnum : Enum;
-    
     private static int WriteRecastEnumStatic<TEnum, TUnderlying>(
         scoped ref PackedBinaryWriter<TWriter> writer,
         TEnum value,
         PackedBinarySerializationContext ctx
     )
-    where TEnum : Enum
+        where TEnum : Enum
     {
         return writer.Write(ReflectionHelpers.As<TEnum, TUnderlying>(value), ctx);
     }
 
     private static readonly WriteReflectionDelegate s_enums = new(nameof(WriteRecastEnumStatic), t => [t, t.GetEnumUnderlyingType()]);
+
     public int WriteEnum<T>(T value, PackedBinarySerializationContext ctx)
     {
         return s_enums.GetSerializer<T>(typeof(T)).Invoke(ref this, value, ctx);
@@ -261,16 +234,16 @@ public ref partial struct PackedBinaryWriter<TWriter>
     {
         return value switch
         {
-            < 1L << 7 * 0 + 6 => 1,
-            < 1L << 7 * 1 + 6 => 2,
-            < 1L << 7 * 2 + 6 => 3,
-            < 1L << 7 * 3 + 6 => 4,
-            < 1L << 7 * 4 + 6 => 5,
-            < 1L << 7 * 5 + 6 => 6,
-            < 1L << 7 * 6 + 6 => 7,
-            < 1L << 7 * 7 + 6 => 8,
-            < 1L << 7 * 8 + 6 => 9,
-            _ => 10,
+            < 1L << (7 * 0 + 6) => 1,
+            < 1L << (7 * 1 + 6) => 2,
+            < 1L << (7 * 2 + 6) => 3,
+            < 1L << (7 * 3 + 6) => 4,
+            < 1L << (7 * 4 + 6) => 5,
+            < 1L << (7 * 5 + 6) => 6,
+            < 1L << (7 * 6 + 6) => 7,
+            < 1L << (7 * 7 + 6) => 8,
+            < 1L << (7 * 8 + 6) => 9,
+            _ => 10
         };
     }
 }

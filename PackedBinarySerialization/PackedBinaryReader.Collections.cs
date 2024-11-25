@@ -13,8 +13,10 @@ public ref partial struct PackedBinaryReader<TReader>
     private static readonly ReflectionDelegate s_memory = new(nameof(ReadRecastMemory), t => [t, t.GetGenericArguments()[0]]);
 
     private TMemory ReadRecastMemory<TMemory>(PackedBinarySerializationContext ctx)
-        where TMemory : allows ref struct =>
-        s_memory.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, ctx);
+        where TMemory : allows ref struct
+    {
+        return s_memory.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, ctx);
+    }
 
     private static TMemory ReadRecastMemory<TMemory, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
@@ -28,21 +30,20 @@ public ref partial struct PackedBinaryReader<TReader>
         int len = ReadInt32(new PackedBinarySerializationContext { UsePackedIntegers = true });
         if (len == 0)
             return null;
-        
+
         T[] arr = new T[len];
-        for (int i = 0; i < len; i++)
-        {
-            arr[i] = Read<T>(ctx.Descend());
-        }
+        for (int i = 0; i < len; i++) arr[i] = Read<T>(ctx.Descend());
 
         return arr;
     }
-    
+
     private static readonly ReflectionDelegate s_readOnlyMemory = new(nameof(ReadRecastReadOnlyMemory), t => [t, t.GetGenericArguments()[0]]);
 
     private TMemory ReadRecastReadOnlyMemory<TMemory>(PackedBinarySerializationContext ctx)
-        where TMemory : allows ref struct =>
-        s_readOnlyMemory.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, ctx);
+        where TMemory : allows ref struct
+    {
+        return s_readOnlyMemory.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, ctx);
+    }
 
     private static TMemory ReadRecastReadOnlyMemory<TMemory, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
@@ -51,7 +52,10 @@ public ref partial struct PackedBinaryReader<TReader>
         return cast;
     }
 
-    public ReadOnlyMemory<T> ReadReadOnlyMemory<T>(PackedBinarySerializationContext ctx) => ReadMemory<T>(ctx);
+    public ReadOnlyMemory<T> ReadReadOnlyMemory<T>(PackedBinarySerializationContext ctx)
+    {
+        return ReadMemory<T>(ctx);
+    }
 
     private static readonly ReflectionDelegate s_array = new(nameof(ReadArray), t => [t.GetElementType()!]);
 
@@ -66,7 +70,7 @@ public ref partial struct PackedBinaryReader<TReader>
         written = null;
         return false;
     }
-        
+
     private static T[]? ReadArray<T>(ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
     {
         return reader.ReadArray<T>(ctx);
@@ -75,13 +79,11 @@ public ref partial struct PackedBinaryReader<TReader>
     public T[]? ReadArray<T>(PackedBinarySerializationContext ctx)
     {
         if (ctx.ImplicitSize)
-        {
             return ReadCollectionType<List<T>, T>(s => s is int size ? new List<T>(size) : [], (l, _, e) => l.Add(e), ctx)?.ToArray();
-        }
 
         return ReadCollectionType<T[], T>(s => s is int size ? new T[size] : [], (l, i, e) => l[i] = e, ctx);
     }
-    
+
     private static readonly Type[] s_asListTypes =
     [
         typeof(List<>),
@@ -89,10 +91,11 @@ public ref partial struct PackedBinaryReader<TReader>
         typeof(IList<>),
         typeof(IReadOnlyList<>),
         typeof(ICollection<>),
-        typeof(IReadOnlyCollection<>),
+        typeof(IReadOnlyCollection<>)
     ];
-    
+
     private static readonly ReflectionDelegate s_list = new(nameof(ReadList), t => [t]);
+
     private bool TryReadList(Type type, PackedBinarySerializationContext ctx, out object? written)
     {
         if (type.IsGenericType && s_asListTypes.Contains(type.GetGenericTypeDefinition()))
@@ -104,8 +107,11 @@ public ref partial struct PackedBinaryReader<TReader>
         written = null;
         return false;
     }
-    
-    private static IEnumerable? ReadList<T>(ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx) => reader.ReadList<T>(ctx);
+
+    private static IEnumerable? ReadList<T>(ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
+    {
+        return reader.ReadList<T>(ctx);
+    }
 
     private IEnumerable? ReadList<T>(PackedBinarySerializationContext ctx)
     {
@@ -115,17 +121,15 @@ public ref partial struct PackedBinaryReader<TReader>
     private TCollection? ReadCollectionType<TCollection, TElement>(
         Func<int?, TCollection> create,
         Action<TCollection, int, TElement> add,
-        PackedBinarySerializationContext ctx)
+        PackedBinarySerializationContext ctx
+    )
     {
         PackedBinarySerializationContext descend = ctx.Descend();
         if (ctx.ImplicitSize)
         {
             TCollection l = create(null);
             int i = 0;
-            while (!_reader.GetSpan(1).IsEmpty)
-            {
-                add(l, i++, Read<TElement>(descend));
-            }
+            while (!_reader.GetSpan(1).IsEmpty) add(l, i++, Read<TElement>(descend));
             return l;
         }
 
@@ -135,10 +139,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 return default;
 
             TCollection l = create(len);
-            for (int i = 0; i < len; i++)
-            {
-                add(l, i, Read<TElement>(descend));
-            }
+            for (int i = 0; i < len; i++) add(l, i, Read<TElement>(descend));
 
             return l;
         }
@@ -147,8 +148,10 @@ public ref partial struct PackedBinaryReader<TReader>
     private static readonly ReflectionDelegate s_immutableArray = new(nameof(ReadRecastImmutableArray), t => [t, t.GetGenericArguments()[0]]);
 
     private TArray ReadRecastImmutableArray<TArray>(PackedBinarySerializationContext ctx)
-        where TArray : allows ref struct =>
-        s_immutableArray.GetSerializer<TArray>(typeof(TArray)).Invoke(ref this, ctx);
+        where TArray : allows ref struct
+    {
+        return s_immutableArray.GetSerializer<TArray>(typeof(TArray)).Invoke(ref this, ctx);
+    }
 
     private static TArray ReadRecastImmutableArray<TArray, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
@@ -160,22 +163,27 @@ public ref partial struct PackedBinaryReader<TReader>
     public ImmutableArray<T> ReadImmutableArray<T>(PackedBinarySerializationContext ctx)
     {
         return ReadCollectionType<ImmutableArray<T>.Builder, T>(
-            s => s is int size ? ImmutableArray.CreateBuilder<T>(size) : ImmutableArray.CreateBuilder<T>(),
-            (a, _, e) => a.Add(e),
-            ctx
-        )?.ToImmutable() ?? [];
+                    s => s is int size ? ImmutableArray.CreateBuilder<T>(size) : ImmutableArray.CreateBuilder<T>(),
+                    (a, _, e) => a.Add(e),
+                    ctx
+                )
+                ?.ToImmutable() ??
+            [];
     }
 
     private static readonly Type[] s_asImmutableListTypes =
     [
         typeof(ImmutableList<>),
-        typeof(IImmutableList<>),
+        typeof(IImmutableList<>)
     ];
+
     private static readonly ReflectionDelegate s_immutableList = new(nameof(ReadRecastImmutableList), t => [t, t.GetGenericArguments()[0]]);
 
     private TList ReadRecastImmutableList<TList>(PackedBinarySerializationContext ctx)
-        where TList : allows ref struct =>
-        s_immutableList.GetSerializer<TList>(typeof(TList)).Invoke(ref this, ctx);
+        where TList : allows ref struct
+    {
+        return s_immutableList.GetSerializer<TList>(typeof(TList)).Invoke(ref this, ctx);
+    }
 
     private static TList ReadRecastImmutableList<TList, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
     {
@@ -187,12 +195,14 @@ public ref partial struct PackedBinaryReader<TReader>
     public ImmutableList<T> ReadImmutableList<T>(PackedBinarySerializationContext ctx)
     {
         return ReadCollectionType<ImmutableList<T>.Builder, T>(
-            _ => ImmutableList.CreateBuilder<T>(),
-            (a, _, e) => a.Add(e),
-            ctx
-        )?.ToImmutable() ?? [];
+                    _ => ImmutableList.CreateBuilder<T>(),
+                    (a, _, e) => a.Add(e),
+                    ctx
+                )
+                ?.ToImmutable() ??
+            [];
     }
-    
+
     private bool TryReadImmutableList(Type type, PackedBinarySerializationContext ctx, [MaybeNullWhen(false)] out object written)
     {
         if (type.IsGenericType && s_asImmutableListTypes.Contains(type.GetGenericTypeDefinition()))
@@ -207,16 +217,21 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static readonly Type[] s_asImmutableSoredSetTypes =
     [
-        typeof(ImmutableSortedSet<>),
+        typeof(ImmutableSortedSet<>)
     ];
-    
+
     private static readonly ReflectionDelegate s_immutableSortedSet = new(nameof(ReadRecastImmutableSortedSet), t => [t, t.GetGenericArguments()[0]]);
 
     private TSortedSet ReadRecastImmutableSortedSet<TSortedSet>(PackedBinarySerializationContext ctx)
-        where TSortedSet : allows ref struct =>
-        s_immutableSortedSet.GetSerializer<TSortedSet>(typeof(TSortedSet)).Invoke(ref this, ctx);
+        where TSortedSet : allows ref struct
+    {
+        return s_immutableSortedSet.GetSerializer<TSortedSet>(typeof(TSortedSet)).Invoke(ref this, ctx);
+    }
 
-    private static TSortedSet ReadRecastImmutableSortedSet<TSortedSet, TElement>(ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
+    private static TSortedSet ReadRecastImmutableSortedSet<TSortedSet, TElement>(
+        ref PackedBinaryReader<TReader> writer,
+        PackedBinarySerializationContext ctx
+    )
     {
         ImmutableSortedSet<TElement> span = writer.ReadImmutableSortedSet<TElement>(ctx);
         ref TSortedSet cast = ref Unsafe.As<ImmutableSortedSet<TElement>, TSortedSet>(ref span);
@@ -226,10 +241,12 @@ public ref partial struct PackedBinaryReader<TReader>
     public ImmutableSortedSet<T> ReadImmutableSortedSet<T>(PackedBinarySerializationContext ctx)
     {
         return ReadCollectionType<ImmutableSortedSet<T>.Builder, T>(
-            _ => ImmutableSortedSet.CreateBuilder<T>(),
-            (a, _, e) => a.Add(e),
-            ctx
-        )?.ToImmutable() ?? [];
+                    _ => ImmutableSortedSet.CreateBuilder<T>(),
+                    (a, _, e) => a.Add(e),
+                    ctx
+                )
+                ?.ToImmutable() ??
+            [];
     }
 
     private bool TryReadImmutableSortedSet(Type type, PackedBinarySerializationContext ctx, out object? written)

@@ -11,11 +11,12 @@ public ref partial struct PackedBinaryReader<TReader>
     {
         public delegate TOutput ReadDelegate<out TOutput>(scoped ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
             where TOutput : allows ref struct;
-        
-        private readonly string _name;
+
         private readonly ReaderWriterLockSlim _lock = new();
-        private readonly Dictionary<Type, Delegate> _serializers = [];
         private readonly Func<Type, Type[]> _methodArgs;
+
+        private readonly string _name;
+        private readonly Dictionary<Type, Delegate> _serializers = [];
 
         public ReflectionDelegate(string name, Func<Type, Type[]>? getTypes = null)
         {
@@ -29,10 +30,7 @@ public ref partial struct PackedBinaryReader<TReader>
             _lock.EnterReadLock();
             try
             {
-                if (_serializers.TryGetValue(type, out Delegate? func))
-                {
-                    return (ReadDelegate<TOutput>)func;
-                }
+                if (_serializers.TryGetValue(type, out Delegate? func)) return (ReadDelegate<TOutput>)func;
             }
             finally
             {
@@ -42,16 +40,13 @@ public ref partial struct PackedBinaryReader<TReader>
             _lock.EnterWriteLock();
             try
             {
-                if (_serializers.TryGetValue(type, out Delegate? func))
-                {
-                    return (ReadDelegate<TOutput>)func;
-                }
-            
+                if (_serializers.TryGetValue(type, out Delegate? func)) return (ReadDelegate<TOutput>)func;
+
                 var callback = typeof(PackedBinaryReader<TReader>)
                     .GetMethod(_name, BindingFlags.Static | BindingFlags.NonPublic)!
                     .MakeGenericMethod(_methodArgs(type))
                     .CreateDelegate<ReadDelegate<TOutput>>();
-            
+
                 _serializers.Add(type, callback);
                 return callback;
             }

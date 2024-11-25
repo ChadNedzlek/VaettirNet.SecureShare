@@ -13,13 +13,16 @@ public readonly record struct PackedBinarySerializationContext(
     TagMap? TagMap = null
 )
 {
-    public PackedBinarySerializationContext Descend() => this with { MaxValue = null, ImplicitSize = false };
+    public PackedBinarySerializationContext Descend()
+    {
+        return this with { MaxValue = null, ImplicitSize = false };
+    }
 }
 
 public class TagMap
 {
-    private readonly Dictionary<Type, int> _typeToTag = [];
     private readonly Dictionary<int, Type> _tagToType = [];
+    private readonly Dictionary<Type, int> _typeToTag = [];
 
     public bool TryGetType(int tag, [NotNullWhen(true)] out Type? type)
     {
