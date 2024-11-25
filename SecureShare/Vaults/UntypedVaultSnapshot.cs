@@ -7,7 +7,7 @@ using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[PackedBinarySerializable]
+[PackedBinarySerializable(IncludeNonPublic = true)]
 public class UntypedVaultSnapshot : IComparable<UntypedVaultSnapshot>, IComparable
 {
 

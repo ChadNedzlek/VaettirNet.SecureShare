@@ -86,47 +86,50 @@ public class VaultTest
             }
         );
     }
+}
 
-    private class MemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>
+public class MemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>
+{
+    private readonly IEqualityComparer<T> _itemComparer;
+
+    public static readonly MemoryComparer<T> Default = new();
+    
+
+    public MemoryComparer() : this(EqualityComparer<T>.Default)
     {
-        private readonly IEqualityComparer<T> _itemComparer;
+    }
 
-        public MemoryComparer() : this(EqualityComparer<T>.Default)
+    public MemoryComparer(IEqualityComparer<T> itemComparer)
+    {
+        _itemComparer = itemComparer;
+    }
+
+    public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+    {
+        if (x.Length != y.Length)
         {
+            return false;
         }
 
-        public MemoryComparer(IEqualityComparer<T> itemComparer)
-        {
-            _itemComparer = itemComparer;
-        }
+        ReadOnlySpan<T> a = x.Span, b = y.Span;
 
-        public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
+        for (int i = 0; i < x.Length; i++)
         {
-            if (x.Length != y.Length)
+            if (!_itemComparer.Equals(a[i], b[i]))
             {
                 return false;
             }
-
-            ReadOnlySpan<T> a = x.Span, b = y.Span;
-
-            for (int i = 0; i < x.Length; i++)
-            {
-                if (!_itemComparer.Equals(a[i], b[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
-        public int GetHashCode(ReadOnlyMemory<T> obj)
-        {
-            HashCode h = new();
-            foreach(T i in obj.Span){
-                h.Add(_itemComparer.GetHashCode(i));
-            }
-            return h.ToHashCode();
+        return true;
+    }
+
+    public int GetHashCode(ReadOnlyMemory<T> obj)
+    {
+        HashCode h = new();
+        foreach(T i in obj.Span){
+            h.Add(_itemComparer.GetHashCode(i));
         }
+        return h.ToHashCode();
     }
 }

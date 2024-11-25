@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,14 +21,6 @@ public ref partial struct PackedBinaryReader<TReader>
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public T Read<T>(PackedBinarySerializationContext ctx) => Read<T>(typeof(T), ctx);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static TOut As<TIn, TOut>(TIn value)
-        where TOut : allows ref struct
-    {
-        ref TOut refVale = ref Unsafe.As<TIn, TOut>(ref value);
-        return refVale;
-    }
-    
     private delegate TOut ReadSurrogateDelegate<out TOut>(
         scoped ref PackedBinaryReader<TReader> reader,
         Delegate transform,
@@ -43,7 +36,7 @@ public ref partial struct PackedBinaryReader<TReader>
         where TOut : allows ref struct
     {
         var typedTransform = (Func<TSurrogate, TModel>)transform;
-        return As<TModel, TOut>(typedTransform(reader.Read<TSurrogate>(ctx)));
+        return ReflectionHelpers.As<TModel, TOut>(typedTransform(reader.Read<TSurrogate>(ctx)));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -57,67 +50,77 @@ public ref partial struct PackedBinaryReader<TReader>
 
         if (type == typeof(sbyte))
         {
-            return As<sbyte, T>(ReadSByte(ctx));
+            return ReflectionHelpers.As<sbyte, T>(ReadSByte(ctx));
         }
 
         if (type == typeof(short))
         {
-            return As<short, T>(ReadInt16(ctx));
+            return ReflectionHelpers.As<short, T>(ReadInt16(ctx));
         }
 
         if (type == typeof(int))
         {
-            return As<int, T>(ReadInt32(ctx));
+            return ReflectionHelpers.As<int, T>(ReadInt32(ctx));
         }
 
         if (type == typeof(long))
         {
-            return As<long, T>(ReadInt64(ctx));
+            return ReflectionHelpers.As<long, T>(ReadInt64(ctx));
         }
 
         if (type == typeof(byte))
         {
-            return As<byte, T>(ReadByte(ctx));
+            return ReflectionHelpers.As<byte, T>(ReadByte(ctx));
         }
 
         if (type == typeof(ushort))
         {
-            return As<ushort, T>(ReadUInt16(ctx));
+            return ReflectionHelpers.As<ushort, T>(ReadUInt16(ctx));
         }
 
         if (type == typeof(uint))
         {
-            return As<uint, T>(ReadUInt32(ctx));
+            return ReflectionHelpers.As<uint, T>(ReadUInt32(ctx));
         }
 
         if (type == typeof(ulong))
         {
-            return As<ulong, T>(ReadUInt64(ctx));
+            return ReflectionHelpers.As<ulong, T>(ReadUInt64(ctx));
         }
 
         if (type == typeof(float))
         {
-            return As<float, T>(ReadSingle(ctx));
+            return ReflectionHelpers.As<float, T>(ReadSingle(ctx));
         }
 
         if (type == typeof(double))
         {
-            return As<double, T>(ReadDouble(ctx));
+            return ReflectionHelpers.As<double, T>(ReadDouble(ctx));
         }
 
         if (type == typeof(string))
         {
-            return As<string, T>(ReadString(ctx)!);
+            return ReflectionHelpers.As<string, T>(ReadString(ctx)!);
         }
 
         if (type == typeof(bool))
         {
-            return As<bool, T>(ReadBool(ctx));
+            return ReflectionHelpers.As<bool, T>(ReadBool(ctx));
         }
 
         if (type == typeof(char))
         {
-            return As<char, T>(ReadChar(ctx));
+            return ReflectionHelpers.As<char, T>(ReadChar(ctx));
+        }
+
+        if (type == typeof(Guid))
+        {
+            return ReflectionHelpers.As<Guid, T>(ReadGuid(ctx));
+        }
+
+        if (type.IsEnum)
+        {
+            return ReadEnum<T>(ctx);
         }
 
         if (_serializer.TryGetReadSurrogate(type, out var targetType, out var transform))
@@ -132,17 +135,26 @@ public ref partial struct PackedBinaryReader<TReader>
             if (refValue is null)
                 return default!;
             
-            return As<object?, T>(refValue);
+            return ReflectionHelpers.As<object?, T>(refValue);
         }
 
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Memory<>))
+        if (type.IsGenericType)
         {
-            return ReadRecastMemory<T>(ctx);
-        }
+            Type genericTypeDefinition = type.GetGenericTypeDefinition();
+            if (genericTypeDefinition == typeof(Memory<>))
+            {
+                return ReadRecastMemory<T>(ctx);
+            }
 
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ReadOnlyMemory<>))
-        {
-            return ReadRecastReadOnlyMemory<T>(ctx);
+            if (genericTypeDefinition == typeof(ReadOnlyMemory<>))
+            {
+                return ReadRecastReadOnlyMemory<T>(ctx);
+            }
+
+            if (genericTypeDefinition == typeof(ImmutableArray<>))
+            {
+                return ReadRecastImmutableArray<T>(ctx);
+            }
         }
 
         ThrowUnknownType(type);
@@ -164,6 +176,8 @@ public ref partial struct PackedBinaryReader<TReader>
         if (TryReadList(type, ctx, out written)) return written;
         if (TryReadSerializable(type, ctx, out written)) return written;
         if (TryReadFromMetadata(type, ctx, out written)) return written;
+        if (TryReadImmutableList(type, ctx, out written)) return written;
+        if (TryReadImmutableSortedSet(type, ctx, out written)) return written;
             
         ThrowUnknownType(type);
         return default;

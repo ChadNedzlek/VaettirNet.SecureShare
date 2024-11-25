@@ -1,6 +1,9 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
+using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 
 namespace SecureShare.Tests;
@@ -43,6 +46,25 @@ public class SerializationTests
         SecretProtectedValue value = new() { ProtValue = "Test Value" };
         Span<byte> buffer = stackalloc byte[1];
         SecretProtectedValue.GetBinarySerializer().TrySerialize(value, buffer, out _).Should().BeFalse();
+    }
+    
+    [Test]
+    public void TrySerializeSignedThing()
+    {
+        TestSignable value = new() { Value = 12345 };
+        VaultCryptographyAlgorithm alg = new();
+        alg.Create(Guid.NewGuid(), out var privateInfo, out var publicInfo);
+        var signed = alg.Sign(value, privateInfo);
+        Span<byte> buffer = stackalloc byte[1000];
+        IBinarySerializer<Signed<TestSignable>> serializer = Signed<TestSignable>.GetBinarySerializer();
+        serializer.TrySerialize(signed.Signed, buffer, out int written).Should().BeTrue();
+        serializer.Deserialize(buffer[..written]).Should().BeEquivalentTo(signed.Signed, o => o.Using(MemoryComparer<byte>.Default));
+    }
+
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
+    private class TestSignable : BinarySerializable<TestSignable>, IBinarySignable<TestSignable>
+    {
+        public int Value { get; set; }
     }
 
     [Test]

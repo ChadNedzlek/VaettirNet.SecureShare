@@ -18,7 +18,7 @@ public class StreamBufferReader : IBufferReader<byte>
 
     public ReadOnlySpan<byte> GetSpan(int sizeHint)
     {
-        if (sizeHint > _filled - _index)
+        if (sizeHint <= _filled - _index)
         {
             return _buffer[_index.._filled];
         }
@@ -29,7 +29,7 @@ public class StreamBufferReader : IBufferReader<byte>
 
     public ReadOnlyMemory<byte> GetMemory(int sizeHint)
     {
-        if (sizeHint > _filled - _index)
+        if (sizeHint <= _filled - _index)
         {
             return _buffer[_index.._filled];
         }
@@ -40,19 +40,31 @@ public class StreamBufferReader : IBufferReader<byte>
 
     private void FillBuffer(int sizeHint)
     {
-        var newBuffer = new byte[int.Max(_buffer.Length, sizeHint)];
-        _buffer.AsSpan(_index).CopyTo(newBuffer);
-        _filled -= _index;
-        _index = 0;
-        sizeHint -= _filled;
-        var unwrittenSpan = newBuffer.AsSpan(_filled);
-        var read = _stream.ReadAtLeast(unwrittenSpan, sizeHint, throwOnEndOfStream: false);
-        _filled = _index + read;
+        if (_filled == _index)
+        {
+            Array.Resize(ref _buffer, int.Max(_buffer.Length, sizeHint));
+            _index = 0;
+            var read = _stream.ReadAtLeast(_buffer, sizeHint, throwOnEndOfStream: false);
+            _filled = _index + read;
+            return;
+        }
+
+        {
+            var newBuffer = new byte[int.Max(_buffer.Length, sizeHint)];
+            _buffer.AsSpan(_index).CopyTo(newBuffer);
+            _filled -= _index;
+            _index = 0;
+            sizeHint -= _filled;
+            var unwrittenSpan = newBuffer.AsSpan(_filled);
+            var read = _stream.ReadAtLeast(unwrittenSpan, sizeHint, throwOnEndOfStream: false);
+            _filled += read;
+            _buffer = newBuffer;
+        }
     }
 
     public void Advance(int count)
     {
-        if (count <= 0 || count >= (_filled - _index))
+        if (count <= 0 || count > (_filled - _index))
             throw new ArgumentOutOfRangeException();
         
         _index += count;

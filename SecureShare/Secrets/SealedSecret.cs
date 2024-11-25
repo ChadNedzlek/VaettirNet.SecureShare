@@ -6,7 +6,7 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-[PackedBinarySerializable]
+[PackedBinarySerializable(IncludeNonPublic = true)]
 public class SealedSecret<TAttributes, TProtected> : UntypedSealedSecret
     where TAttributes : IBinarySerializable<TAttributes>, IJsonSerializable<TAttributes>
     where TProtected : IBinarySerializable<TProtected>

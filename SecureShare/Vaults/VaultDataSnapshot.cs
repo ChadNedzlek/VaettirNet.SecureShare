@@ -10,7 +10,7 @@ using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
 
-[PackedBinarySerializable]
+[PackedBinarySerializable(IncludeNonPublic = true)]
 public class UnvalidatedVaultDataSnapshot : BinarySerializable<UnvalidatedVaultDataSnapshot>, ISignable
 {
     [PackedBinaryMember(1)]

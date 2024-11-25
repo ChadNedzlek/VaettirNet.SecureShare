@@ -336,12 +336,17 @@ public ref partial struct PackedBinaryWriter<TWriter>
                 if (value is null)
                     return writer.WriteInt32(-1, ctx with { UsePackedIntegers = true });
 
+                if (value.GetType() == type)
+                {
+                    return writer.WriteInt32(0, ctx with { UsePackedIntegers = true });;
+                }
+
                 if (tags.TryGetValue(value.GetType(), out var tag))
                 {
                     return writer.WriteInt32(tag, ctx with { UsePackedIntegers = true });
                 }
-
-                return 0;
+                
+                throw new ArgumentException($"Value of type {value.GetType().Name} is not an included subtype of {type.Name}", nameof(value));
             };
         }
     }
@@ -399,10 +404,10 @@ public ref partial struct PackedBinaryWriter<TWriter>
             }
 
             PackedBinarySerializableAttribute attr = key.derivedType.GetCustomAttribute<PackedBinarySerializableAttribute>() ??
-                writer._serializer.GetEffectiveSerializableAttribute(key.derivedType);
+                writer._serializer.GetEffectiveSerializableAttribute(key.derivedType)!;
 
             var targetMembers = key.derivedType.GetMembers(
-                    BindingFlags.Instance | BindingFlags.Public | (attr?.IncludeNonPublic is true? BindingFlags.NonPublic : 0)
+                    BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic is true? BindingFlags.NonPublic : 0)
                 )
                 .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
             if (!attr.SequentialMembers)

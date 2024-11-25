@@ -30,7 +30,7 @@ public class VaultNodeBuilder
     public VaultNode BuildTree(IEnumerable<NodeRecord> records)
     {
         Dictionary<ReadOnlyMemory<byte>, VaultNode> nodes = new(BufferComparer.Instance);
-        VaultNode root = null;
+        VaultNode? root = null;
         foreach (NodeRecord? record in records)
         {
             VaultNode? parent = null;
@@ -63,12 +63,14 @@ public class VaultNodeBuilder
         return this;
     }
 
-    public async Task<VaultNode> ReadTreeAsync(Stream source)
+    public Task<VaultNode> ReadTreeAsync(Stream source)
     {
-        throw null;
+        PackedBinarySerializer s = GetSerializer();
+        var records = s.Deserialize<NodeRecord[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
+        return Task.FromResult(BuildTree(records));
     }
 
-    public async Task WriteTreeAsync(VaultNode tree, Stream destination)
+    public Task WriteTreeAsync(VaultNode tree, Stream destination)
     {
         Initialize();
         HashSet<VaultNode> allNodes = [];
@@ -78,10 +80,24 @@ public class VaultNodeBuilder
                 foreach (VaultNode? child in node.Children)
                     scan.Enqueue(child);
 
-        IEnumerable<VaultNode>? newNodes = allNodes.Where(n => n.Index == -1);
-        IOrderedEnumerable<VaultNode>? oldNodes = allNodes.Where(n => n.Index > -1).OrderBy(n => n.Index);
+        IEnumerable<VaultNode> newNodes = allNodes.Where(n => n.Index == -1);
+        IOrderedEnumerable<VaultNode> oldNodes = allNodes.Where(n => n.Index > -1).OrderBy(n => n.Index);
         NodeRecord[] nodeList = [..oldNodes.Concat(newNodes).Select(n => new NodeRecord(n.Parent?.Signature ?? default, n.Signature, n.GetValue()))];
-        PackedBinarySerializer s = new PackedBinarySerializer();
-        throw null;
+        PackedBinarySerializer s = GetSerializer();
+        s.Serialize(destination, nodeList, new PackedBinarySerializationOptions(ImplicitRepeat: true));
+        return Task.CompletedTask;
+    }
+
+    private PackedBinarySerializer GetSerializer()
+    {
+        PackedBinarySerializer s = new();
+        var nodeValueBuilder = s.AddType<NodeValue>();
+        int i = 0x33;
+        foreach (var t in _valueTypes)
+        {
+            nodeValueBuilder.AddSubType(++i, t);
+        }
+
+        return s;
     }
 }

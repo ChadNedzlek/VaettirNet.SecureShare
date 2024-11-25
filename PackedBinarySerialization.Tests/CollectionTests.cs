@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using FluentAssertions;
 using NUnit.Framework;
 
@@ -64,7 +65,6 @@ public class CollectionTests
         roundTrippedValue.Should().BeEquivalentTo(expected, o => o.Using(new MemoryComparer<int>()));
     }
 
-
     [TestCase(true, true)]
     [TestCase(false, true)]
     [TestCase(true, false)]
@@ -110,6 +110,38 @@ public class CollectionTests
         IReadOnlyList<int> expected = [1,2,3,4,5, -1, -200, 1_000_000];
         s.Serialize(buffer, expected, options);
         var roundTrippedValue = s.Deserialize<IReadOnlyList<int>>(buffer.WrittenSpan, options);
+        roundTrippedValue.Should().BeEquivalentTo(expected, o => o.Using(new MemoryComparer<int>()));
+    }
+
+    [TestCase(true, true)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(false, false)]
+    public void ImmutableLists(bool packed, bool implicitRepeat)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed, ImplicitRepeat: implicitRepeat);
+        buffer.ResetWrittenCount();
+        ImmutableList<int> expected = [1,2,3,4,5, -1, -200, 1_000_000];
+        s.Serialize(buffer, expected, options);
+        var roundTrippedValue = s.Deserialize<ImmutableList<int>>(buffer.WrittenSpan, options);
+        roundTrippedValue.Should().BeEquivalentTo(expected, o => o.Using(new MemoryComparer<int>()));
+    }
+
+    [TestCase(true, true)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(false, false)]
+    public void ImmutableSortedSet(bool packed, bool implicitRepeat)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed, ImplicitRepeat: implicitRepeat);
+        buffer.ResetWrittenCount();
+        ImmutableSortedSet<int> expected = [1,2,3,4,5, -1, -200, 1_000_000];
+        s.Serialize(buffer, expected, options);
+        var roundTrippedValue = s.Deserialize<ImmutableSortedSet<int>>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().BeEquivalentTo(expected, o => o.Using(new MemoryComparer<int>()));
     }
 

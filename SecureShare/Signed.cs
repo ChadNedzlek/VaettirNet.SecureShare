@@ -1,10 +1,11 @@
 using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare;
 
-[PackedBinarySerializable]
-public class Signed<T>
+[PackedBinarySerializable(IncludeNonPublic = true)]
+public class Signed<T> : IBinarySerializable<Signed<T>>
     where T : ISignable
 {
     [PackedBinaryMember(1)] private T _payload;
@@ -17,15 +18,17 @@ public class Signed<T>
     }
 
     [PackedBinaryMember(3)]
-    public Guid Signer { get; }
+    public Guid Signer { get; private init; }
 
     [PackedBinaryMember(2)]
-    public ReadOnlyMemory<byte> Signature { get; private set; }
+    public ReadOnlyMemory<byte> Signature { get; private init; }
 
     public T DangerousGetPayload()
     {
         return _payload;
     }
+
+    public static IBinarySerializer<Signed<T>> GetBinarySerializer() => PackedBinaryObjectSerializer<Signed<T>>.Create();
 }
 
 public static class Signed

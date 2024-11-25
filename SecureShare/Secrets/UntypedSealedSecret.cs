@@ -5,7 +5,7 @@ using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare.Secrets;
 
-[PackedBinarySerializable]
+[PackedBinarySerializable(IncludeNonPublic = true)]
 public class UntypedSealedSecret : IEquatable<UntypedSealedSecret>
 {
     [PackedBinaryMember(1)]

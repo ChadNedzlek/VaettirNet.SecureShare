@@ -48,7 +48,10 @@ public ref partial struct PackedBinaryReader<TReader>
         return member switch
         {
             FieldInfo f => BuildFieldSetter(f),
-            PropertyInfo p => p.GetSetMethod(true)!.CreateDelegate<Action<TObj, TMember>>(),
+            PropertyInfo p =>
+                // Re-lookup the value because private members are only available on the declaring type, not any derived types
+                p.DeclaringType!.GetProperty(p.Name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetSetMethod(true)!
+                    .CreateDelegate<Action<TObj, TMember>>(),
             _ => null,
         };
 
@@ -150,7 +153,14 @@ public ref partial struct PackedBinaryReader<TReader>
 
     private static TBase Construct<TBase, TDerived>() where TDerived : TBase
     {
-        return Activator.CreateInstance<TDerived>();
+        try
+        {
+            return Activator.CreateInstance<TDerived>();
+        }
+        catch (MissingMethodException)
+        {
+            return (TBase)RuntimeHelpers.GetUninitializedObject(typeof(TDerived));
+        }
     }
 
     private static readonly DelegateCache<PackedBinaryReader<TReader>, (Type baseType, Type derivedType), Delegate> s_constructCache = new();
@@ -187,10 +197,10 @@ public ref partial struct PackedBinaryReader<TReader>
         static Delegate BuildWriterDelegate((Type returnType, Type targetType, Type instanceType) key, ref PackedBinaryReader<TReader> reader)
         {
             PackedBinarySerializableAttribute attr = key.targetType.GetCustomAttribute<PackedBinarySerializableAttribute>() ??
-                    reader._serializer.GetEffectiveSerializableAttribute(key.targetType);
+                    reader._serializer.GetEffectiveSerializableAttribute(key.targetType)!;
 
             IEnumerable<MemberInfo> targetMembers = key.targetType.GetMembers(
-                    BindingFlags.Instance | BindingFlags.Public | (attr?.IncludeNonPublic is true ? BindingFlags.NonPublic : 0)
+                    BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
                 )
                 .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
             if (!attr.SequentialMembers)
@@ -259,7 +269,6 @@ public ref partial struct PackedBinaryReader<TReader>
     private static TDelegate GetMember<TDelegate>(string name, params Type[] gtas)
         where TDelegate : Delegate
     {
-        var d = typeof(TDelegate);
         MethodInfo methodInfo = typeof(PackedBinaryReader<TReader>).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!;
         MethodInfo genericInstance = methodInfo.MakeGenericMethod(gtas);
         return genericInstance.CreateDelegate<TDelegate>();

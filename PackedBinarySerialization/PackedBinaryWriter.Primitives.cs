@@ -1,3 +1,4 @@
+using System;
 using System.Buffers.Binary;
 using System.Text;
 
@@ -225,18 +226,49 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return WriteUInt16(value, ctx);
     }
 
+    public int WriteGuid(Guid guid, PackedBinarySerializationContext ctx)
+    {
+        var span = _writer.GetSpan(16);
+        guid.TryWriteBytes(span, bigEndian: false, out _);
+        _writer.Advance(16);
+        return 16;
+    }
+
+    private delegate int WriteRecastEnumStaticDelegate<in TEnum>(
+        scoped ref PackedBinaryWriter<TWriter> writer,
+        TEnum value,
+        PackedBinarySerializationContext ctx
+    )
+        where TEnum : Enum;
+    
+    private static int WriteRecastEnumStatic<TEnum, TUnderlying>(
+        scoped ref PackedBinaryWriter<TWriter> writer,
+        TEnum value,
+        PackedBinarySerializationContext ctx
+    )
+    where TEnum : Enum
+    {
+        return writer.Write(ReflectionHelpers.As<TEnum, TUnderlying>(value), ctx);
+    }
+
+    private static readonly WriteReflectionDelegate s_enums = new(nameof(WriteRecastEnumStatic), t => [t, t.GetEnumUnderlyingType()]);
+    public int WriteEnum<T>(T value, PackedBinarySerializationContext ctx)
+    {
+        return s_enums.GetSerializer<T>(typeof(T)).Invoke(ref this, value, ctx);
+    }
+
     private int GetNumberSize(ulong value)
     {
         return value switch
         {
-            < 1L << 7 * 1 => 1,
-            < 1L << 7 * 2 => 2,
-            < 1L << 7 * 3 => 3,
-            < 1L << 7 * 4 => 4,
-            < 1L << 7 * 5 => 5,
-            < 1L << 7 * 6 => 6,
-            < 1L << 7 * 7 => 7,
-            < 1L << 7 * 8 => 8,
+            < 1L << 7 * 0 + 6 => 1,
+            < 1L << 7 * 1 + 6 => 2,
+            < 1L << 7 * 2 + 6 => 3,
+            < 1L << 7 * 3 + 6 => 4,
+            < 1L << 7 * 4 + 6 => 5,
+            < 1L << 7 * 5 + 6 => 6,
+            < 1L << 7 * 6 + 6 => 7,
+            < 1L << 7 * 7 + 6 => 8,
             < 1L << 7 * 8 + 6 => 9,
             _ => 10,
         };

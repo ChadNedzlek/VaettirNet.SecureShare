@@ -10,14 +10,14 @@ public ref partial struct PackedBinaryWriter<TWriter>
 {
     public delegate int WriteDelegate<in TInput>(scoped ref PackedBinaryWriter<TWriter> writer, TInput input, PackedBinarySerializationContext ctx);
     
-    private class ReflectionDelegate
+    private class WriteReflectionDelegate
     {
         private readonly string _name;
         private readonly ReaderWriterLockSlim _lock = new();
         private readonly Dictionary<Type, Delegate> _serializers = [];
         private readonly Func<Type, Type[]> _methodArgs; 
 
-        public ReflectionDelegate(string name, Func<Type, Type[]> getTypes = null)
+        public WriteReflectionDelegate(string name, Func<Type, Type[]> getTypes = null)
         {
             _methodArgs = getTypes ?? (t => t.GetGenericArguments());
             _name = name;

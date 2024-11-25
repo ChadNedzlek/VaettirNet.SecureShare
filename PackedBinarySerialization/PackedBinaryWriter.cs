@@ -1,6 +1,8 @@
 using System;
 using System.Buffers;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -64,69 +66,79 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
         if (typeof(T) == typeof(byte))
         {
-            return writer.WriteByte((byte)(object)value, ctx);
+            return writer.WriteByte(ReflectionHelpers.As<T, byte>(value), ctx);
         }
 
         if (typeof(T) == typeof(sbyte))
         {
-            return writer.WriteSByte((sbyte)(object)value, ctx);
+            return writer.WriteSByte(ReflectionHelpers.As<T, sbyte>(value), ctx);
         }
         
         if (typeof(T) == typeof(short))
         {
-            return writer.WriteInt16((short)(object)value, ctx);
+            return writer.WriteInt16(ReflectionHelpers.As<T, short>(value), ctx);
         }
 
         if (typeof(T) == typeof(ushort))
         {
-            return writer.WriteUInt16((ushort)(object)value, ctx);
+            return writer.WriteUInt16(ReflectionHelpers.As<T, ushort>(value), ctx);
         }
 
         if (typeof(T) == typeof(int))
         {
-            return writer.WriteInt32((int)(object)value, ctx);
+            return writer.WriteInt32(ReflectionHelpers.As<T, int>(value), ctx);
         }
 
         if (typeof(T) == typeof(uint))
         {
-            return writer.WriteUInt32((uint)(object)value, ctx);
+            return writer.WriteUInt32(ReflectionHelpers.As<T, uint>(value), ctx);
         }
 
         if (typeof(T) == typeof(long))
         {
-            return writer.WriteInt64((long)(object)value, ctx);
+            return writer.WriteInt64(ReflectionHelpers.As<T, long>(value), ctx);
         }
 
         if (typeof(T) == typeof(ulong))
         {
-            return writer.WriteUInt64((ulong)(object)value, ctx);
+            return writer.WriteUInt64(ReflectionHelpers.As<T, ulong>(value), ctx);
         }
 
         if (typeof(T) == typeof(float))
         {
-            return writer.WriteSingle((float)(object)value, ctx);
+            return writer.WriteSingle(ReflectionHelpers.As<T, float>(value), ctx);
         }
 
         if (typeof(T) == typeof(double))
         {
-            return writer.WriteDouble((double)(object)value, ctx);
+            return writer.WriteDouble(ReflectionHelpers.As<T, double>(value), ctx);
         }
 
         if (typeof(T) == typeof(string))
         {
-            return writer.WriteString((string)(object)value, ctx);
+            return writer.WriteString(ReflectionHelpers.As<T, string>(value), ctx);
         }
 
         if (typeof(T) == typeof(bool))
         {
-            return writer.WriteBool((bool)(object)value, ctx);
+            return writer.WriteBool(ReflectionHelpers.As<T, bool>(value), ctx);
         }
 
         if (typeof(T) == typeof(char))
         {
-            return writer.WriteChar((char)(object)value, ctx);
+            return writer.WriteChar(ReflectionHelpers.As<T, char>(value), ctx);
         }
-        
+
+        if (typeof(T) == typeof(Guid))
+        {
+            return writer.WriteGuid(ReflectionHelpers.As<T, Guid>(value), ctx);
+        }
+
+        if (typeof(T).IsEnum)
+        {
+            return writer.WriteEnum(value, ctx);
+        }
+
         if (writer._serializer.TryGetWriteSurrogate(typeof(T), out var targetType, out var transformDelegate))
         {
             return typeof(PackedBinaryWriter<TWriter>)
@@ -141,19 +153,23 @@ public ref partial struct PackedBinaryWriter<TWriter>
             return writer.WriteRefValue<T>(value, ctx);
         }
 
-        if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(ReadOnlyMemory<>))
+        if (typeof(T).IsGenericType)
         {
-            return writer.WriteRecastReadOnlyMemory(value, ctx);
-        }
+            Type genericTypeDefinition = typeof(T).GetGenericTypeDefinition();
+            if (genericTypeDefinition == typeof(ReadOnlyMemory<>))
+            {
+                return writer.WriteRecastReadOnlyMemory(value, ctx);
+            }
         
-        if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Memory<>))
-        {
-            return writer.WriteRecastMemory(value, ctx);
-        }
+            if (genericTypeDefinition == typeof(Memory<>))
+            {
+                return writer.WriteRecastMemory(value, ctx);
+            }
         
-        if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(ReadOnlySpan<>))
-        {
-            return writer.WriteRecastReadOnlySpan(value, ctx);
+            if (genericTypeDefinition == typeof(ReadOnlySpan<>))
+            {
+                return writer.WriteRecastReadOnlySpan(value, ctx);
+            }
         }
 
         writer.ThrowUnknownType(typeof(T));
@@ -173,7 +189,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return default;
     }
 
-    private static readonly ReflectionDelegate s_serializableReflector = new(nameof(WriteSerializable));
+    private static readonly WriteReflectionDelegate s_serializableReflector = new(nameof(WriteSerializable));
 
     private static int WriteSerializable(ref PackedBinaryWriter<TWriter> writer, IPackedBinarySerializable value, PackedBinarySerializationContext ctx)
     {

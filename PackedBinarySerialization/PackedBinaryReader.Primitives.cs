@@ -182,4 +182,23 @@ public ref partial struct PackedBinaryReader<TReader>
     {
         return (char)ReadUInt16(ctx);
     }
+
+    public Guid ReadGuid(PackedBinarySerializationContext ctx)
+    {
+        var value = new Guid(_reader.GetSpan(16)[..16], bigEndian: false);
+        _reader.Advance(16);
+        return value;
+    }
+
+    private static TEnum ReadEnumRecast<TEnum, TUnderlying>(scoped ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
+    {
+        return ReflectionHelpers.As<TUnderlying, TEnum>(reader.Read<TUnderlying>(ctx));
+    }
+
+    private static readonly ReflectionDelegate s_enum = new(nameof(ReadEnumRecast), t => [t, t.GetEnumUnderlyingType()]);
+    public TEnum ReadEnum<TEnum>(PackedBinarySerializationContext ctx)
+        where TEnum : allows ref struct
+    {
+        return s_enum.GetSerializer<TEnum>(typeof(TEnum)).Invoke(ref this, ctx);
+    }
 }

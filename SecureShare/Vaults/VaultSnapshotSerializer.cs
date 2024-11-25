@@ -20,15 +20,15 @@ public class VaultSnapshotSerializer
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
                 var sealedValueType = model.AddType<UntypedSealedSecret>();
-                int fieldNumber = 20;
+                int fieldNumber = 1;
                 foreach (Type type in sealedSecretTypes)
                 {
                     sealedValueType.AddSubType(fieldNumber++, type);
                 }
 
-                void AddSignedType<T>(PackedBinarySerializer runtimeTypeModel) where T : ISignable
+                void AddSignedType<T>(PackedBinarySerializer serializer) where T : ISignable
                 {
-                    runtimeTypeModel.AddType<Signed<T>>();
+                    serializer.AddType<Signed<T>>();
                 }
             }
         );

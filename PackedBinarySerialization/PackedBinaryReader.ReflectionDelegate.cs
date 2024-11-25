@@ -9,7 +9,7 @@ public ref partial struct PackedBinaryReader<TReader>
 {
     private class ReflectionDelegate
     {
-        public delegate TOutput ReadDelegate<out TOutput>(scoped ref PackedBinaryReader<TReader> writer, PackedBinarySerializationContext ctx)
+        public delegate TOutput ReadDelegate<out TOutput>(scoped ref PackedBinaryReader<TReader> reader, PackedBinarySerializationContext ctx)
             where TOutput : allows ref struct;
         
         private readonly string _name;

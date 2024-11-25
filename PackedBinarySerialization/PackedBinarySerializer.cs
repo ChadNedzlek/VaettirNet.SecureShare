@@ -64,8 +64,9 @@ public class PackedBinarySerializer
 
     public void Serialize<T>(Stream s, T value, PackedBinarySerializationOptions? options = null)
     {
-        PipeWriter writer = PipeWriter.Create(s);
+        PipeWriter writer = PipeWriter.Create(s, new StreamPipeWriterOptions(leaveOpen: true));
         SerializeCore(ref writer, value, BuildContext(options));
+        writer.Complete();
     }
 
     private void SerializeCore<TWriter, T>(ref TWriter writer, T value, PackedBinarySerializationContext ctx)

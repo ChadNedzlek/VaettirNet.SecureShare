@@ -8,7 +8,7 @@ namespace VaettirNet.PackedBinarySerialization;
 
 public ref partial struct PackedBinaryWriter<TWriter>
 {
-    private static readonly ReflectionDelegate s_readOnlySpanDelegates = new(nameof(WriteRecastReadOnlySpan), t => [t, t.GetGenericArguments()[0]]);
+    private static readonly WriteReflectionDelegate s_readOnlySpanDelegates = new(nameof(WriteRecastReadOnlySpan), t => [t, t.GetGenericArguments()[0]]);
 
     private int WriteRecastReadOnlySpan<TSpan>(TSpan span, PackedBinarySerializationContext ctx) => 
         s_readOnlySpanDelegates.GetSerializer<TSpan>(typeof(TSpan)).Invoke(ref this, span, ctx);
@@ -23,7 +23,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return writer.WriteSpan(s, ctx);
     }
     
-    private static readonly ReflectionDelegate s_spanDelegates = new(nameof(WriteRecastSpan), t => [t, t.GetGenericArguments()[0]]);
+    private static readonly WriteReflectionDelegate s_spanDelegates = new(nameof(WriteRecastSpan), t => [t, t.GetGenericArguments()[0]]);
 
     private int WriteRecastSpan<TSpan>(TSpan span, PackedBinarySerializationContext ctx) => 
         s_spanDelegates.GetSerializer<TSpan>(typeof(TSpan)).Invoke(ref this, span, ctx);
@@ -38,7 +38,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return writer.WriteSpan((ReadOnlySpan<TElement>)s, ctx);
     }
     
-    private static readonly ReflectionDelegate s_readOnlyMemoryDelegates = new(nameof(WriteRecastReadOnlyMemory), t => [t, t.GetGenericArguments()[0]]);
+    private static readonly WriteReflectionDelegate s_readOnlyMemoryDelegates = new(nameof(WriteRecastReadOnlyMemory), t => [t, t.GetGenericArguments()[0]]);
 
     private int WriteRecastReadOnlyMemory<TMemory>(TMemory value, PackedBinarySerializationContext ctx) =>
         s_memoryDelegates.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, value, ctx);
@@ -53,7 +53,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return writer.WriteSpan(s.Span, ctx);
     }
     
-    private static readonly ReflectionDelegate s_memoryDelegates = new(nameof(WriteRecastMemory), t => [t, t.GetGenericArguments()[0]]);
+    private static readonly WriteReflectionDelegate s_memoryDelegates = new(nameof(WriteRecastMemory), t => [t, t.GetGenericArguments()[0]]);
 
     private int WriteRecastMemory<TMemory>(TMemory value, PackedBinarySerializationContext ctx) =>
         s_memoryDelegates.GetSerializer<TMemory>(typeof(TMemory)).Invoke(ref this, value, ctx);
@@ -81,7 +81,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         return written;
     }
 
-    private static readonly ReflectionDelegate s_arrayReflector = new(nameof(WriteArray), a => [a.GetElementType()]);
+    private static readonly WriteReflectionDelegate s_arrayReflector = new(nameof(WriteArray), a => [a.GetElementType()]);
 
     private static int WriteArray<T>(ref PackedBinaryWriter<TWriter> writer, Array value, PackedBinarySerializationContext ctx)
     {
@@ -121,7 +121,7 @@ public ref partial struct PackedBinaryWriter<TWriter>
         }
     }
 
-    private static readonly ReflectionDelegate s_enumerableReflector = new(nameof(WriteEnumerable));
+    private static readonly WriteReflectionDelegate s_enumerableReflector = new(nameof(WriteEnumerable));
 
     private static int WriteEnumerable<T>(ref PackedBinaryWriter<TWriter> writer, IEnumerable value, PackedBinarySerializationContext ctx)
     {

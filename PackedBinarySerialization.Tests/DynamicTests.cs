@@ -140,6 +140,19 @@ public class DynamicTests
         var roundTripped = s.Deserialize<DateTimeOffset>(buffer.WrittenSpan, options);
         roundTripped.Should().Be(value);
     }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void GenericTypes(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        var input = new GenericType<string> { Value = 0x55, GenValue = "Pizza" };
+        s.Serialize(buffer, input, options);
+        var roundTripped = s.Deserialize<GenericType<string>>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input);
+    }
 
     [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
     [PackedBinaryIncludeType(0x333, typeof(SubWeirdThing))]
@@ -190,5 +203,12 @@ public class DynamicTests
     public class DerivedTestValue : AbstractTestValue
     {
         public int DerivedValue { get; set; }
+    }
+
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
+    public class GenericType<T>
+    {
+        public int Value { get; set; }
+        public T GenValue { get; set; }
     }
 }
