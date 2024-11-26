@@ -153,6 +153,32 @@ public class DynamicTests
         var roundTripped = s.Deserialize<GenericType<string>>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input);
     }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void FullCtor(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        var input = new FullCtorType(0x55, 0x66);
+        s.Serialize(buffer, input, options);
+        var roundTripped = s.Deserialize<FullCtorType>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input);
+    }
+    
+    [TestCase(true)]
+    [TestCase(false)]
+    public void PartialCtor(bool packed)
+    {
+        PackedBinarySerializer s = new();
+        ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
+        PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
+        var input = new PartialCtorType(0x55, 0x66){ Delayed = 0x44};
+        s.Serialize(buffer, input, options);
+        var roundTripped = s.Deserialize<PartialCtorType>(buffer.WrittenSpan, options);
+        roundTripped.Should().BeEquivalentTo(input);
+    }
 
     [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
     [PackedBinaryIncludeType(0x333, typeof(SubWeirdThing))]
@@ -210,5 +236,46 @@ public class DynamicTests
     {
         public int Value { get; set; }
         public T GenValue { get; set; }
+    }
+
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Explicit)]
+    public class FullCtorType
+    {
+        [PackedBinaryMember(1)]
+        public readonly int Value;
+        [PackedBinaryMember(2)]
+        public int Prop { get; }
+        
+        [PackedBinaryMemberIgnore]
+        public int CtorProp { get; }
+
+        [PackedBinaryConstructor]
+        public FullCtorType(int value, int prop)
+        {
+            Value = value;
+            Prop = prop;
+            CtorProp = value + prop;
+        }
+    }
+    [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Explicit)]
+    public class PartialCtorType
+    {
+        [PackedBinaryMember(2)]
+        public readonly int Value;
+        [PackedBinaryMember(1)]
+        public int Prop { get; }
+        [PackedBinaryMember(3)]
+        public int Delayed { get; init; }
+        
+        [PackedBinaryMemberIgnore]
+        public int CtorProp { get; }
+
+        [PackedBinaryConstructor]
+        public PartialCtorType(int value, int prop)
+        {
+            Value = value;
+            Prop = prop;
+            CtorProp = value + prop;
+        }
     }
 }

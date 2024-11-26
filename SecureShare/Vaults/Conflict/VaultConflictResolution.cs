@@ -33,7 +33,7 @@ public class PartialVaultConflictResolution
 
     public PartialVaultConflictResolution WithAutoResolutions()
     {
-        ImmutableArray<VaultResolutionItem>.Builder? res = _resolutions.ToBuilder();
+        ImmutableArray<VaultResolutionItem?>.Builder res = _resolutions.ToBuilder();
         for (int i = 0; i < _items.Count; i++)
         {
             VaultConflictItem item = _items[i];
