@@ -235,7 +235,7 @@ public ref partial struct PackedBinaryReader<TReader>
 
                 foreach (var parameter in constructorInfo.GetParameters())
                 {
-                    var matched = typedMembers.Where(m => MemberNameComparer.Default.Equals(m.member.Name, parameter.Name)).ToList();
+                    var matched = typedMembers.Where(m => MemberNameComparer.Default.Equals(m.member.Name, parameter.Name) && m.type.IsAssignableTo(parameter.ParameterType)).ToList();
                     (MemberInfo member, Type type, int index) = matched switch
                     {
                         [] => throw new ArgumentException($"Parameter {parameter.Name} does not match any serializable fields"),
