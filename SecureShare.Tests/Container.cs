@@ -1,6 +1,6 @@
 using VaettirNet.PackedBinarySerialization.Attributes;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 [PackedBinarySerializable]
 public class Container

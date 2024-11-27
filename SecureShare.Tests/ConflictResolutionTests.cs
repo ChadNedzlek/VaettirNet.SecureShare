@@ -2,13 +2,12 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
 using VaettirNet.PackedBinarySerialization.Attributes;
-using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 using VaettirNet.SecureShare.Vaults.Conflict;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class ConflictResolutionTests
 {

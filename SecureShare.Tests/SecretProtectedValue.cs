@@ -1,7 +1,7 @@
 using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 [PackedBinarySerializable]
 public class SecretProtectedValue : BinarySerializable<SecretProtectedValue>

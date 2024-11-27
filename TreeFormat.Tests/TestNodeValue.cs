@@ -1,6 +1,6 @@
 using VaettirNet.PackedBinarySerialization.Attributes;
 
-namespace TreeFormat.Tests;
+namespace VaettirNet.TreeFormat.Tests;
 
 [PackedBinarySerializable(MemberLayout = PackedBinaryMemberLayout.Sequential)]
 internal class TestNodeValue : NodeValue

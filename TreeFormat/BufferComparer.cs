@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TreeFormat;
+namespace VaettirNet.TreeFormat;
 
 public class BufferComparer : IEqualityComparer<ReadOnlyMemory<byte>>
 {

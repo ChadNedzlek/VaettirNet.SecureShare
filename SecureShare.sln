@@ -22,6 +22,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PackedBinarySerialization",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PackedBinarySerialization.Tests", "PackedBinarySerialization.Tests\PackedBinarySerialization.Tests.csproj", "{486C7E6A-EF5E-4D72-BD7A-D6907DDB14D0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureShare.Crypto", "SecureShare.Crypto\SecureShare.Crypto.csproj", "{21639CF7-4274-496A-B64A-2C4BBF6A4101}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureShare.Common", "SecureShare.Common\SecureShare.Common.csproj", "{989173FA-9132-4C33-A0CE-0869F348F92A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureShare.Serialization", "SecureShare.Serialization\SecureShare.Serialization.csproj", "{8078AB26-4140-44AD-B8DF-C04995E4AD67}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,5 +78,17 @@ Global
 		{486C7E6A-EF5E-4D72-BD7A-D6907DDB14D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{486C7E6A-EF5E-4D72-BD7A-D6907DDB14D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{486C7E6A-EF5E-4D72-BD7A-D6907DDB14D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21639CF7-4274-496A-B64A-2C4BBF6A4101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21639CF7-4274-496A-B64A-2C4BBF6A4101}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21639CF7-4274-496A-B64A-2C4BBF6A4101}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21639CF7-4274-496A-B64A-2C4BBF6A4101}.Release|Any CPU.Build.0 = Release|Any CPU
+		{989173FA-9132-4C33-A0CE-0869F348F92A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{989173FA-9132-4C33-A0CE-0869F348F92A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{989173FA-9132-4C33-A0CE-0869F348F92A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{989173FA-9132-4C33-A0CE-0869F348F92A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8078AB26-4140-44AD-B8DF-C04995E4AD67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8078AB26-4140-44AD-B8DF-C04995E4AD67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8078AB26-4140-44AD-B8DF-C04995E4AD67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8078AB26-4140-44AD-B8DF-C04995E4AD67}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

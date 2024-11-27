@@ -1,22 +1,31 @@
 using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
 
-namespace TreeFormat;
+namespace VaettirNet.TreeFormat;
 
 [PackedBinarySerializable(IncludeNonPublic = true)]
-public sealed class NodeRecord
+public sealed class NodeRecord : ISignable
 {
-    public NodeRecord(ReadOnlyMemory<byte> parent, ReadOnlyMemory<byte> signature, NodeValue value)
+    [PackedBinaryConstructor]
+    public NodeRecord(ReadOnlyMemory<byte> parent, NodeValue value)
     {
         Parent = parent;
-        Signature = signature;
         Value = value;
     }
 
     [PackedBinaryMember(1)]
-    public ReadOnlyMemory<byte> Parent { get; private init; }
+    public ReadOnlyMemory<byte> Parent { get; }
     [PackedBinaryMember(2)]
-    public ReadOnlyMemory<byte> Signature { get; private init; }
-    [PackedBinaryMember(3)]
-    public NodeValue Value { get; private init; }
+    public NodeValue Value { get; }
+
+    public bool TryGetDataToSign(Span<byte> destination, out int cb)
+    {
+        cb = 0;
+        Span<byte> working = destination;
+        if (!Parent.Span.TryCopyTo(working)) return false;
+        working = working.Slice(Parent.Length);
+        if (!Value.TryGetDataToSign(working, out int cbValue)) return false;
+        cb = Parent.Length + cbValue;
+        return true;
+    }
 }

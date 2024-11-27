@@ -2,7 +2,6 @@
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
-        <RootNamespace>VaettirNet.PackedBinarySerialization</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

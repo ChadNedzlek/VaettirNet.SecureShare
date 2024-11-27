@@ -1,7 +1,7 @@
-using VaettirNet.Threading.Tasks;
 using FluentAssertions;
+using VaettirNet.Threading.Tasks;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class CovariantTaskTests
 {

@@ -1,12 +1,11 @@
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using VaettirNet.PackedBinarySerialization.Attributes;
-using VaettirNet.SecureShare;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class SerializationTests
 {

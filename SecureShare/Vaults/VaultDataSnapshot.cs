@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 

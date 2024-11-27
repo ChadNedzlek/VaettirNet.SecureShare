@@ -1,7 +1,30 @@
 using System;
 using System.Collections.Generic;
 
-namespace TreeFormat;
+namespace VaettirNet.TreeFormat;
+
+public class VaultTree
+{
+    public abstract class Node
+    {
+        public Node Parent { get; protected set; }
+        public abstract IReadOnlyList<Node> Children { get; }
+    }
+
+    private class SignedRecordNode : Node
+    {
+        private List<SignedRecordNode>? _children;
+        public NodeValue Value { get; }
+        private Signed<NodeRecord> rec;
+
+        public SignedRecordNode(NodeValue value)
+        {
+            Value = value;
+        }
+
+        public override IReadOnlyList<Node> Children => (IReadOnlyList<Node>?)_children?.AsReadOnly() ?? Array.Empty<Node>();
+    }
+}
 
 public abstract class VaultNode
 {

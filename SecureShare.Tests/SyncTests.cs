@@ -1,4 +1,4 @@
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class SyncTests
 {

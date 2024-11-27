@@ -1,7 +1,7 @@
 using FluentAssertions;
 using VaettirNet.SecureShare.Secrets;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class TransformerTests
 {

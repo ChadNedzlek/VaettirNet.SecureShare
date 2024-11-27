@@ -1,7 +1,7 @@
 using System;
 using VaettirNet.SecureShare.Serialization;
 
-namespace VaettirNet.SecureShare;
+namespace VaettirNet.SecureShare.Crypto;
 
 public interface ISignable
 {

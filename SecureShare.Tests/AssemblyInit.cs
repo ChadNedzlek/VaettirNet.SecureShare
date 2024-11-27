@@ -1,6 +1,6 @@
 using FluentAssertions.Formatting;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 [SetUpFixture]
 public static class AssemblyInit

@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using VaettirNet.PackedBinarySerialization;
 
-namespace TreeFormat;
+namespace VaettirNet.TreeFormat;
 
 public class VaultNodeBuilder
 {
@@ -82,7 +82,7 @@ public class VaultNodeBuilder
 
         IEnumerable<VaultNode> newNodes = allNodes.Where(n => n.Index == -1);
         IOrderedEnumerable<VaultNode> oldNodes = allNodes.Where(n => n.Index > -1).OrderBy(n => n.Index);
-        NodeRecord[] nodeList = [..oldNodes.Concat(newNodes).Select(n => new NodeRecord(n.Parent?.Signature ?? default, n.Signature, n.GetValue()))];
+        NodeRecord[] nodeList = [..oldNodes.Concat(newNodes).Select(n => new NodeRecord(n.Parent?.Signature ?? default, n.GetValue()))];
         PackedBinarySerializer s = GetSerializer();
         s.Serialize(destination, nodeList, new PackedBinarySerializationOptions(ImplicitRepeat: true));
         return Task.CompletedTask;

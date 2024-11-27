@@ -1,4 +1,5 @@
 using System;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Sync;
 
 namespace VaettirNet.SecureShare;

@@ -18,6 +18,8 @@
         <ProjectReference Include="..\CovariantTask\CovariantTask.csproj"/>
         <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj" />
         <ProjectReference Include="..\ProtectedData\ProtectedData.csproj"/>
+        <ProjectReference Include="..\SecureShare.Crypto\SecureShare.Crypto.csproj" />
+        <ProjectReference Include="..\SecureShare.Serialization\SecureShare.Serialization.csproj" />
     </ItemGroup>
 
 </Project>

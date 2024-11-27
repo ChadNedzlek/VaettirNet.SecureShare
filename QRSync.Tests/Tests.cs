@@ -10,7 +10,7 @@ using System.Reflection;
 using System.Runtime.Versioning;
 using FluentAssertions;
 
-namespace QRSync.Tests;
+namespace VaettirNet.QRSync.Tests;
 
 public class Tests
 {

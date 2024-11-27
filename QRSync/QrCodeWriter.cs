@@ -2,9 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Net.Codecrete.QrCodeGenerator;
 
-namespace QRSync;
+namespace VaettirNet.QRSync;
 
 public static class QrCodeWriter
 {

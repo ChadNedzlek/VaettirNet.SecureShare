@@ -1,7 +1,6 @@
 using FluentAssertions;
-using VaettirNet.SecureShare;
 
-namespace SecureShare.Tests;
+namespace VaettirNet.SecureShare.Tests;
 
 public class MessageAlgoritmTest
 {

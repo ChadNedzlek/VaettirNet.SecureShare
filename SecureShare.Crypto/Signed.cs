@@ -2,7 +2,7 @@ using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.Serialization;
 
-namespace VaettirNet.SecureShare;
+namespace VaettirNet.SecureShare.Crypto;
 
 [PackedBinarySerializable(IncludeNonPublic = true)]
 public class Signed<T> : IBinarySerializable<Signed<T>>
