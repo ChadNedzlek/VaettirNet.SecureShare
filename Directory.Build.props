@@ -6,8 +6,8 @@
         <RootDir>$(MSBuildThisFileDirectory)</RootDir>
         <PackageOutputPath>$(RootDir)/.out/packages</PackageOutputPath>
         <RootNamespace Condition=" '$(RootNamespace)' == '' ">VaettirNet.$(MSBuildProjectName)</RootNamespace>
-        <BaseOutputPath>$(RootDir)/.out/bin</BaseOutputPath>
-        <BaseIntermediateOutputPath>$(RootDir)/.out/obj</BaseIntermediateOutputPath>
+        <BaseOutputPath>$(RootDir)/.out/bin/$(MSBuildProjectName)</BaseOutputPath>
+        <BaseIntermediateOutputPath>$(RootDir)/.out/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
 
         <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows>
         <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX>

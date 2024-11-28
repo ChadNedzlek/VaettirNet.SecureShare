@@ -4,13 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Pipelines;
-using System.Text;
 using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.PackedBinarySerialization.Buffers;
 
 namespace VaettirNet.PackedBinarySerialization;
-
-public record class PackedBinarySerializationOptions(Encoding? Encoding = null, bool UsePackedEncoding = false, bool ImplicitRepeat = false);
 
 public class PackedBinarySerializer
 {
@@ -211,119 +208,3 @@ public class PackedBinarySerializer
         }
     }
 }
-
-internal static class DictionaryExtensions
-{
-    public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TKey, TValue> create)
-    {
-        if (!dictionary.TryGetValue(key, out TValue? value)) dictionary.Add(key, value = create(key));
-
-        return value;
-    }
-
-    public static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key)
-        where TValue : new()
-    {
-        if (!dictionary.TryGetValue(key, out TValue? value)) dictionary.Add(key, value = new TValue());
-
-        return value;
-    }
-}
-
-public delegate TOut RefInFunc<T1, out TOut>(scoped ref T1 refArg)
-    where T1 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, out TOut>(scoped ref T1 refArg, T2 arg2)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, in T4, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, in T4, in T5, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, in T4, in T5, in T6, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, in T4, in T5, in T6, in T7, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct
-    where T7 : allows ref struct
-    where TOut : allows ref struct;
-public delegate TOut RefInFunc<T1, in T2, in T3, in T4, in T5, in T6, in T7, in T8, out TOut>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct
-    where T7 : allows ref struct
-    where T8 : allows ref struct
-    where TOut : allows ref struct;
-
-public delegate void RefInAction<T1>(scoped ref T1 refArg)
-    where T1 : allows ref struct;
-public delegate void RefInAction<T1, in T2>(scoped ref T1 refArg, T2 arg2)
-    where T1 : allows ref struct
-    where T2 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3>(scoped ref T1 refArg, T2 arg2, T3 arg3)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3, in T4>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3, in T4, in T5>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3, in T4, in T5, in T6>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3, in T4, in T5, in T6, in T7>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct
-    where T7 : allows ref struct;
-public delegate void RefInAction<T1, in T2, in T3, in T4, in T5, in T6, in T7, in T8>(scoped ref T1 refArg, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
-    where T1 : allows ref struct
-    where T2 : allows ref struct
-    where T3 : allows ref struct
-    where T4 : allows ref struct
-    where T5 : allows ref struct
-    where T6 : allows ref struct
-    where T7 : allows ref struct
-    where T8 : allows ref struct;

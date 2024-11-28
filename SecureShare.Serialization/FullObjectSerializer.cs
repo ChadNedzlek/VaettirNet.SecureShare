@@ -11,5 +11,5 @@ public class FullObjectSerializer
     public static FullObjectSerializer Create<T>() => Instance;
 
     public JsonNode Serialize(object value, Type type) => (JsonObject)JsonSerializer.SerializeToNode(value, type)!;
-    public object? Deserialize(JsonNode json, Type type) => json.Deserialize(type);
+    public object Deserialize(JsonNode json, Type type) => json.Deserialize(type);
 }

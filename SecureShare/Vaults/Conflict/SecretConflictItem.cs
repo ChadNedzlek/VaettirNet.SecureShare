@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
@@ -29,7 +31,7 @@ public class SecretConflictItem : VaultConflictItem
         return false;
     }
 
-    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem? resolution, VaultCryptographyAlgorithm algorithm)
+    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem resolution, VaultCryptographyAlgorithm algorithm)
     {
         LiveVaultData data = liveVault;
         
@@ -59,10 +61,10 @@ public class SecretConflictItem : VaultConflictItem
     public class NoConflictItem : VaultConflictItem
     {
         public readonly VaultIdentifier VaultKey;
-        public readonly UntypedSealedSecret? BaseEntry;
+        public readonly UntypedSealedSecret BaseEntry;
         public readonly OneOf<UntypedSealedSecret, RemovedSecretRecord> Updated;
 
-        public NoConflictItem(VaultIdentifier vaultKey, UntypedSealedSecret? baseEntry, OneOf<UntypedSealedSecret, RemovedSecretRecord> updated)
+        public NoConflictItem(VaultIdentifier vaultKey, UntypedSealedSecret baseEntry, OneOf<UntypedSealedSecret, RemovedSecretRecord> updated)
         {
             VaultKey = vaultKey;
             BaseEntry = baseEntry;
@@ -75,7 +77,7 @@ public class SecretConflictItem : VaultConflictItem
             return true;
         }
 
-        public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem? resolution, VaultCryptographyAlgorithm algorithm)
+        public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem resolution, VaultCryptographyAlgorithm algorithm)
         {
             LiveVaultData data = liveVault;
             Updated.Map(
@@ -86,10 +88,10 @@ public class SecretConflictItem : VaultConflictItem
         }
     }
 
-    public static NoConflictItem Added(VaultIdentifier vaultKey, UntypedSealedSecret? baseEntry, UntypedSealedSecret newEntry) =>
+    public static NoConflictItem Added(VaultIdentifier vaultKey, UntypedSealedSecret baseEntry, UntypedSealedSecret newEntry) =>
         new(vaultKey, baseEntry, newEntry);
-    public static NoConflictItem Updated(VaultIdentifier vaultKey, UntypedSealedSecret? baseEntry, UntypedSealedSecret newEntry) =>
+    public static NoConflictItem Updated(VaultIdentifier vaultKey, UntypedSealedSecret baseEntry, UntypedSealedSecret newEntry) =>
         new(vaultKey, baseEntry, newEntry);
-    public static NoConflictItem Removed(VaultIdentifier vaultKey, UntypedSealedSecret? baseEntry, RemovedSecretRecord newEntry) =>
+    public static NoConflictItem Removed(VaultIdentifier vaultKey, UntypedSealedSecret baseEntry, RemovedSecretRecord newEntry) =>
         new(vaultKey, baseEntry, newEntry);
 }

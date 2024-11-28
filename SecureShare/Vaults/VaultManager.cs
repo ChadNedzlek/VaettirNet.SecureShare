@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -21,7 +23,7 @@ public class VaultManager
     public VaultClientEntry ApproveRequest(RefSigner signer, VaultRequest request)
     {
         Span<byte> sharedKey = stackalloc byte[_transformer.KeySize];
-        PublicClientInfo publicInfo = request.PublicInfo;
+        PublicKeyInfo publicInfo = request.PublicInfo;
         _transformer.ExportKey(sharedKey, out _);
         using RentedSpan<byte> encryptedClientKey = SpanHelpers.GrowingSpan(
             stackalloc byte[100],
@@ -37,7 +39,7 @@ public class VaultManager
             request.EncryptionKey,
             request.SigningKey,
             encryptedClientKey.Span.ToArray(),
-            signer.Keys.ClientId
+            signer.Keys.Id
         );
     }
 
@@ -49,14 +51,14 @@ public class VaultManager
     public static VaultManager Import(
         VaultCryptographyAlgorithm messageAlg,
         ValidatedVaultDataSnapshot vault,
-        PrivateClientInfo privateInfo
+        PrivateKeyInfo privateInfo
     )
     {
         LiveVaultData live = LiveVaultData.FromSnapshot(vault);
-        if (!live.TryGetClient(privateInfo.ClientId, out VaultClientEntry? clientEntry))
+        if (!live.TryGetClient(privateInfo.Id, out VaultClientEntry clientEntry))
             throw new ArgumentException("Client ID is not present in vault data");
 
-        if (!live.TryGetClient(clientEntry.Authorizer, out VaultClientEntry? authorizer))
+        if (!live.TryGetClient(clientEntry.Authorizer, out VaultClientEntry authorizer))
             throw new ArgumentException("Authorizer is not present");
 
         using RentedSpan<byte> sharedKey = SpanHelpers.GrowingSpan(
@@ -77,7 +79,7 @@ public class VaultManager
     public static VaultManager Initialize(
         string clientDescription,
         VaultCryptographyAlgorithm encryptionAlgorithm,
-        out PrivateClientInfo privateInfo
+        out PrivateKeyInfo privateInfo
     )
     {
         VaultRequest request = VaultRequest.Create(encryptionAlgorithm, clientDescription, out privateInfo);
@@ -94,13 +96,13 @@ public class VaultManager
         return manager;
     }
 
-    public SecretTransformer GetTransformer(PrivateClientInfo clientInfo)
+    public SecretTransformer GetTransformer(PrivateKeyInfo keyInfo)
     {
-        VaultClientEntry vaultClient = Vault.Clients.First(v => v.ClientId == clientInfo.ClientId);
+        VaultClientEntry vaultClient = Vault.Clients.First(v => v.ClientId == keyInfo.Id);
         VaultClientEntry authorizer = Vault.Clients.First(v => v.ClientId == vaultClient.Authorizer);
         ReadOnlySpan<byte> encryptedKey = vaultClient.EncryptedSharedKey.Span;
         Span<byte> decryptedKey = stackalloc byte[SecretTransformer.KeySizeInBytes];
-        if (!_vaultCryptographyAlgorithm.TryDecryptFrom(encryptedKey, clientInfo, authorizer.PublicInfo, decryptedKey, out int written))
+        if (!_vaultCryptographyAlgorithm.TryDecryptFrom(encryptedKey, keyInfo, authorizer.PublicInfo, decryptedKey, out int written))
         {
             throw new InvalidOperationException();
         }

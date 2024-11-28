@@ -60,7 +60,7 @@ internal partial class FixedSizeUnmanagedMemoryStream : Stream
         return _baseStream.WriteAsync(buffer, cancellationToken);
     }
 
-    public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback? callback, object? state)
+    public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
     {
         if (count + Length > _baseStream.Capacity)
         {

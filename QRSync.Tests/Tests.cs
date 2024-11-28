@@ -9,6 +9,10 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.Versioning;
 using FluentAssertions;
+using NUnit.Framework;
+using NUnit.Framework.Internal;
+using VaettirNet.SecureShare.Common;
+using TypeExtensions = FluentAssertions.TypeExtensions;
 
 namespace VaettirNet.QRSync.Tests;
 
@@ -18,7 +22,8 @@ public class Tests
     [SupportedOSPlatform("windows")]
     public void ReadKnownEmbeddedQrCode()
     {
-        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("QRSync.Tests.Resources.qrcode.png")!;
+        var ns = Reflections.CurrentType().Namespace;
+        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(Reflections.CurrentType().Namespace + ".Resources.qrcode.png")!;
         IReadOnlyList<ReadOnlyMemory<byte>> res = QrCodeReader.GetCodesFromImage(stream);
         ReadOnlyMemory<byte> bytes = res.Should().ContainSingle().Subject;
         string base64Content = Convert.ToBase64String(bytes.Span);

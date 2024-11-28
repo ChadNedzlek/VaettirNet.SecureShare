@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -28,34 +29,34 @@ public class VaultRequest : BinarySerializable<VaultRequest>
     [PackedBinaryMember(5)]
     public ReadOnlyMemory<byte> ExtraData { get; private set; }
     
-    public PublicClientInfo PublicInfo => new PublicClientInfo(ClientId, EncryptionKey, SigningKey);
+    public PublicKeyInfo PublicInfo => new PublicKeyInfo(ClientId, EncryptionKey, SigningKey);
     
-    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, ReadOnlySpan<char> extraData, out PrivateClientInfo privateInfo)
+    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, ReadOnlySpan<char> extraData, out PrivateKeyInfo privateInfo)
     {
         byte[] buffer = new byte[Encoding.UTF8.GetMaxByteCount(extraData.Length)];
         int cb = Encoding.UTF8.GetBytes(extraData, buffer);
         return Create(algorithm, description, buffer.AsMemory(0, cb), out privateInfo);
     }
     
-    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, ReadOnlyMemory<byte> extraData, out PrivateClientInfo privateInfo)
+    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, ReadOnlyMemory<byte> extraData, out PrivateKeyInfo privateInfo)
     {
         Guid clientId = Guid.NewGuid();
-        algorithm.Create(clientId, out privateInfo, out PublicClientInfo publicInfo);
+        algorithm.CreateKeys(clientId, out privateInfo, out PublicKeyInfo publicInfo);
         return Create(description, publicInfo, extraData);
     }
 
-    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, out PrivateClientInfo privateInfo)
+    public static VaultRequest Create(VaultCryptographyAlgorithm algorithm, string description, out PrivateKeyInfo privateInfo)
         => Create(algorithm, description, ReadOnlyMemory<byte>.Empty, out privateInfo);
 
-    public static VaultRequest Create(string description, PublicClientInfo publicInfo, ReadOnlySpan<char> extraData)
+    public static VaultRequest Create(string description, PublicKeyInfo publicInfo, ReadOnlySpan<char> extraData)
     {
         byte[] buffer = new byte[Encoding.UTF8.GetMaxByteCount(extraData.Length)];
         int cb = Encoding.UTF8.GetBytes(extraData, buffer);
-        return new VaultRequest(publicInfo.ClientId, description, publicInfo.EncryptionKey, publicInfo.SigningKey, buffer.AsMemory(0, cb));
+        return new VaultRequest(publicInfo.Id, description, publicInfo.EncryptionKey, publicInfo.SigningKey, buffer.AsMemory(0, cb));
     }
 
-    public static VaultRequest Create(string description, PublicClientInfo publicInfo, ReadOnlyMemory<byte> extraData = default)
+    public static VaultRequest Create(string description, PublicKeyInfo publicInfo, ReadOnlyMemory<byte> extraData = default)
     {
-        return new VaultRequest(publicInfo.ClientId, description, publicInfo.EncryptionKey, publicInfo.SigningKey, extraData);
+        return new VaultRequest(publicInfo.Id, description, publicInfo.EncryptionKey, publicInfo.SigningKey, extraData);
     }
 }

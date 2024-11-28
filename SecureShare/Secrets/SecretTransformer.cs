@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using JetBrains.Annotations;
+using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Serialization;
 
 using DataProtectionScope = VaettirNet.Cryptography.DataProtectionScope;
@@ -48,7 +49,7 @@ public class SecretTransformer
     [MustDisposeResource]
     private Encryptor GetAlgorithm()
     {
-        if (!_encryptors.TryTake(out Aes? aes))
+        if (!_encryptors.TryTake(out Aes aes))
         {
             Span<byte> key = stackalloc byte[KeySize];
             GetKey(key, out int cb);

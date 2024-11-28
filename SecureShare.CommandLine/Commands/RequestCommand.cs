@@ -4,9 +4,9 @@ using System.Buffers.Text;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
-using QRSync;
 using VaettirNet.QRSync;
 using VaettirNet.SecureShare.CommandLine.Services;
+using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
 

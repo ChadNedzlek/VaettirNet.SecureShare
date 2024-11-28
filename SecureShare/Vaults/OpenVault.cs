@@ -82,7 +82,7 @@ public class OpenVaultReader<TAttributes, TProtected>
 
         public void Update(SealedSecret<TAttributes, TProtected> secret)
         {
-            if (_vault._secrets.TryGetValue(secret.Id, out SealedSecret<TAttributes, TProtected>? existing))
+            if (_vault._secrets.TryGetValue(secret.Id, out SealedSecret<TAttributes, TProtected> existing))
                 _vault._secrets[secret.Id] = secret.WithVersion(existing.Version + 1);
             else
                 _vault._secrets.Add(secret.Id, secret);
@@ -107,7 +107,7 @@ public class OpenVaultReader<TAttributes, TProtected>
 
         public bool Remove(Guid id)
         {
-            if (_vault._secrets.Remove(id, out SealedSecret<TAttributes, TProtected>? value))
+            if (_vault._secrets.Remove(id, out SealedSecret<TAttributes, TProtected> value))
             {
                 _vault._removedSecrets.Add(id, new RemovedSecretRecord(id, value.Version, value.HashBytes));
                 return true;

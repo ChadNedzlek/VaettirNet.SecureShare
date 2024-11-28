@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
@@ -166,5 +167,25 @@ public ref partial struct PackedBinaryWriter<TWriter>
 
         written = 0;
         return false;
+    }
+    
+    private static readonly WriteReflectionDelegate s_immutableArrayDelegates = new(
+        nameof(WriteRecastImmutableArray),
+        t => [t, t.GetGenericArguments()[0]]
+    );
+
+    private int WriteRecastImmutableArray<T>(T array, PackedBinarySerializationContext ctx)
+    {
+        return s_immutableArrayDelegates.GetSerializer<T>(typeof(T)).Invoke(ref this, array, ctx);
+    }
+
+    private static int WriteRecastImmutableArray<TArray, TElement>(
+        ref PackedBinaryWriter<TWriter> writer,
+        TArray array,
+        PackedBinarySerializationContext ctx
+    )
+    {
+        ref ImmutableArray<TElement> arr = ref Unsafe.As<TArray, ImmutableArray<TElement>>(ref array);
+        return writer.WriteSpan(arr.AsSpan(), ctx);
     }
 }

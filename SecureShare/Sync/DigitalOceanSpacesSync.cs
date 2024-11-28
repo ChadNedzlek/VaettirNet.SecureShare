@@ -12,7 +12,7 @@ using VaettirNet.SecureShare.Vaults;
 namespace VaettirNet.SecureShare.Sync;
 
 public record class GetVaultResult(bool FromCache, string CacheKey, Signed<UnvalidatedVaultDataSnapshot> Snapshot);
-public record class PutVaultResult(bool Succeeded, string CacheKey, Signed<UnvalidatedVaultDataSnapshot>? ConflictVault = null, InvalidVaultException? InvalidExistingVault = null);
+public record class PutVaultResult(bool Succeeded, string CacheKey, Signed<UnvalidatedVaultDataSnapshot> ConflictVault = null, InvalidVaultException InvalidExistingVault = null);
 
 public class DigitalOceanConfig
 {
@@ -35,15 +35,15 @@ public class DigitalOceanConfig
 public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
 {
     private readonly VaultSnapshotSerializer _serializer;
-    private readonly DigitalOceanConfig? _config;
-    private readonly IOptionsMonitor<DigitalOceanConfig>? _configMonitor;
-    private readonly IDisposable? _changeRegistration;
+    private readonly DigitalOceanConfig _config;
+    private readonly IOptionsMonitor<DigitalOceanConfig> _configMonitor;
+    private readonly IDisposable _changeRegistration;
 
-    private string? _lastEtag;
-    private Signed<UnvalidatedVaultDataSnapshot>? _lastSnapshot;
+    private string _lastEtag;
+    private Signed<UnvalidatedVaultDataSnapshot> _lastSnapshot;
 
     private readonly Lock _clientLock = new();
-    private AmazonS3Client? _client;
+    private AmazonS3Client _client;
 
     public DigitalOceanSpacesSync(DigitalOceanConfig digitalOceanConfig, VaultSnapshotSerializer serializer)
     {
@@ -58,7 +58,7 @@ public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
         _serializer = serializer;
     }
 
-    private void ResetClient(DigitalOceanConfig config, string? arg2)
+    private void ResetClient(DigitalOceanConfig config, string arg2)
     {
         lock (_clientLock)
         {
@@ -94,7 +94,7 @@ public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
     public async Task<GetVaultResult> GetVaultAsync(CancellationToken cancellationToken)
     {
         DigitalOceanConfig config = Config;
-        GetObjectResponse? response;
+        GetObjectResponse response;
         try
         {
             response = await GetClient().GetObjectAsync(
@@ -118,7 +118,7 @@ public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
         return new GetVaultResult(false, response.ETag, snapshot);
     }
 
-    public async Task<PutVaultResult> PutVaultAsync(ValidatedVaultDataSnapshot snapshot, string? etag, bool force, CancellationToken cancellationToken)
+    public async Task<PutVaultResult> PutVaultAsync(ValidatedVaultDataSnapshot snapshot, string etag, bool force, CancellationToken cancellationToken)
     {
         etag ??= _lastEtag;
         DigitalOceanConfig config = Config;
@@ -134,7 +134,7 @@ public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
                 request.IfNoneMatch = etag ?? "*";
             }
 
-            PutObjectResponse? response = await GetClient()
+            PutObjectResponse response = await GetClient()
                 .PutObjectAsync(
                     request,
                     cancellationToken
@@ -150,7 +150,7 @@ public sealed class DigitalOceanSpacesSync : IVaultSyncClient, IDisposable
         }
         catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.PreconditionFailed)
         {
-            GetObjectResponse? response = await GetClient()
+            GetObjectResponse response = await GetClient()
                 .GetObjectAsync(
                     new GetObjectRequest { BucketName = config.Bucket, Key = config.Name, EtagToNotMatch = _lastEtag },
                     cancellationToken

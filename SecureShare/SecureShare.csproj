@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <RootNamespace>VaettirNet.SecureShare</RootNamespace>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
@@ -11,15 +10,14 @@
         <PackageReference Include="AWSSDK.S3" Version="3.7.405"/>
         <PackageReference Include="JetBrains.Annotations" Version="2024.2.0" PrivateAssets="all"/>
         <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2"/>
-        <PackageReference Include="VaettirNet.CodeGeneration.DelegateImplementation" Version="0.0.5"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CovariantTask\CovariantTask.csproj"/>
-        <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj" />
+        <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj"/>
         <ProjectReference Include="..\ProtectedData\ProtectedData.csproj"/>
-        <ProjectReference Include="..\SecureShare.Crypto\SecureShare.Crypto.csproj" />
-        <ProjectReference Include="..\SecureShare.Serialization\SecureShare.Serialization.csproj" />
+        <ProjectReference Include="..\SecureShare.Crypto\SecureShare.Crypto.csproj"/>
+        <ProjectReference Include="..\SecureShare.Serialization\SecureShare.Serialization.csproj"/>
     </ItemGroup>
 
 </Project>

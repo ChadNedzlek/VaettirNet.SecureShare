@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using SkiaSharp;
+using ZXing;
+using ZXing.Common;
+using ZXing.Multi.QrCode;
 
 namespace VaettirNet.QRSync;
 

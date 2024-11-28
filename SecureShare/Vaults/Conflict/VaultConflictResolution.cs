@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
 
@@ -7,7 +9,7 @@ public class PartialVaultConflictResolution
 {
     private readonly ValidatedVaultDataSnapshot _baseVault;
     private readonly ImmutableList<VaultConflictItem> _items;
-    private readonly ImmutableArray<VaultResolutionItem?> _resolutions;
+    private readonly ImmutableArray<VaultResolutionItem> _resolutions;
 
     public PartialVaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items)
     {
@@ -16,7 +18,7 @@ public class PartialVaultConflictResolution
         _resolutions = [..new VaultResolutionItem[items.Count]];
     }
     
-    private PartialVaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items, ImmutableArray<VaultResolutionItem?> resolutions)
+    private PartialVaultConflictResolution(ValidatedVaultDataSnapshot baseVault, ImmutableList<VaultConflictItem> items, ImmutableArray<VaultResolutionItem> resolutions)
     {
         _baseVault = baseVault;
         _items = items;
@@ -33,11 +35,11 @@ public class PartialVaultConflictResolution
 
     public PartialVaultConflictResolution WithAutoResolutions()
     {
-        ImmutableArray<VaultResolutionItem?>.Builder res = _resolutions.ToBuilder();
+        ImmutableArray<VaultResolutionItem>.Builder res = _resolutions.ToBuilder();
         for (int i = 0; i < _items.Count; i++)
         {
             VaultConflictItem item = _items[i];
-            if (item.TryGetAutoResolution(out VaultResolutionItem? r))
+            if (item.TryGetAutoResolution(out VaultResolutionItem r))
             {
                 res[i] = r;
             }
@@ -65,10 +67,10 @@ public class PartialVaultConflictResolution
         return false;
     }
 
-    public Result<ValidatedVaultDataSnapshot, (VaultConflictItem conflict, VaultResolutionItem? resolution)> Apply(
+    public Result<ValidatedVaultDataSnapshot, (VaultConflictItem conflict, VaultResolutionItem resolution)> Apply(
         VaultCryptographyAlgorithm algorithm,
-        PrivateClientInfo signer,
-        VaultResolutionItem? defaultResolution = null)
+        PrivateKeyInfo signer,
+        VaultResolutionItem defaultResolution = null)
     {
         if (defaultResolution is null)
         {

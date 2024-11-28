@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VaettirNet.PackedBinarySerialization;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
 
@@ -27,34 +28,38 @@ public class VaultNodeBuilder
         }
     }
 
-    public VaultNode BuildTree(IEnumerable<NodeRecord> records)
+    public SignedTree BuildTree(
+        IEnumerable<Signed<NodeRecord>> records,
+        Func<IReadOnlyList<SignedTree.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        VaultCryptographyAlgorithm alg
+    )
     {
-        Dictionary<ReadOnlyMemory<byte>, VaultNode> nodes = new(BufferComparer.Instance);
-        VaultNode? root = null;
-        foreach (NodeRecord? record in records)
+        Dictionary<SignedTree.NodeId, SignedTree.Node> nodes = new();
+        SignedTree tree = null;
+        foreach (Signed<NodeRecord> signed in records)
         {
-            VaultNode? parent = null;
-            if (!record.Parent.IsEmpty) parent = nodes[record.Parent];
+            NodeRecord record = signed.DangerousGetPayload();
+            List<SignedTree.Node> parents = record.ParentSignatures.Select(sig => nodes[new (sig)]).ToList();
 
-            VaultNode node = (VaultNode)Activator.CreateInstance(
-                typeof(VaultNode<>).MakeGenericType(record.Value.GetType()),
-                parent,
-                record.Value,
-                record.Signature,
-                nodes.Count
-            )!;
-            nodes.Add(record.Signature, node);
-            if (node.Parent is null)
+            TrustedPublicKeys keys = establishTrust(parents, record.Value);
+            SignedTree.Node newNode;
+            if (tree is null)
             {
-                if (root != null) throw new ArgumentException("Multiple root nodes detected", nameof(nodes));
-
-                root = node;
+                tree = new SignedTree(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
+                newNode = tree.Root;
             }
+            else
+            {
+                if (parents.Count == 0) throw new ArgumentException("Multiple root nodes detected", nameof(nodes));
+                
+                newNode = tree.CreateNode(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys, parents);
+            }
+            nodes.Add(newNode.Id, newNode);
         }
 
-        if (root is null) throw new ArgumentException("No root node detected", nameof(nodes));
+        if (tree is null) throw new ArgumentException("No root node detected", nameof(nodes));
 
-        return root;
+        return tree;
     }
 
     public VaultNodeBuilder AddNodeType<T>()
@@ -63,26 +68,34 @@ public class VaultNodeBuilder
         return this;
     }
 
-    public Task<VaultNode> ReadTreeAsync(Stream source)
+    public Task<SignedTree> ReadTreeAsync(
+        Stream source,
+        Func<IReadOnlyList<SignedTree.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        VaultCryptographyAlgorithm alg
+    )
     {
         PackedBinarySerializer s = GetSerializer();
-        NodeRecord[] records = s.Deserialize<NodeRecord[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
-        return Task.FromResult(BuildTree(records));
+        Signed<NodeRecord>[] records = s.Deserialize<Signed<NodeRecord>[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
+        return Task.FromResult(BuildTree(records, establishTrust, alg));
     }
 
-    public Task WriteTreeAsync(VaultNode tree, Stream destination)
+    public Task WriteTreeAsync(SignedTree tree, Stream destination)
     {
         Initialize();
-        HashSet<VaultNode> allNodes = [];
-        Queue<VaultNode> scan = new([tree]);
-        while (scan.TryDequeue(out VaultNode? node))
+        HashSet<SignedTree.Node> allNodes = [];
+        Queue<SignedTree.Node> scan = new([tree.Root]);
+        while (scan.TryDequeue(out SignedTree.Node node))
+        {
             if (allNodes.Add(node))
-                foreach (VaultNode? child in node.Children)
+            {
+                foreach (SignedTree.Node child in node.Children)
+                {
                     scan.Enqueue(child);
+                }
+            }
+        }
 
-        IEnumerable<VaultNode> newNodes = allNodes.Where(n => n.Index == -1);
-        IOrderedEnumerable<VaultNode> oldNodes = allNodes.Where(n => n.Index > -1).OrderBy(n => n.Index);
-        NodeRecord[] nodeList = [..oldNodes.Concat(newNodes).Select(n => new NodeRecord(n.Parent?.Signature ?? default, n.GetValue()))];
+        var nodeList = allNodes.OrderBy(n => n.Index).Select(n => n.ToRecord().Signed);
         PackedBinarySerializer s = GetSerializer();
         s.Serialize(destination, nodeList, new PackedBinarySerializationOptions(ImplicitRepeat: true));
         return Task.CompletedTask;
@@ -93,10 +106,7 @@ public class VaultNodeBuilder
         PackedBinarySerializer s = new();
         PackedBinarySerializer.TypeBuilder nodeValueBuilder = s.AddType<NodeValue>();
         int i = 0x33;
-        foreach (Type t in _valueTypes)
-        {
-            nodeValueBuilder.AddSubType(++i, t);
-        }
+        foreach (Type t in _valueTypes) nodeValueBuilder.AddSubType(++i, t);
 
         return s;
     }

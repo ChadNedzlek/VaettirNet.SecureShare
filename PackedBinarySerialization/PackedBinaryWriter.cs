@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -102,10 +103,9 @@ public ref partial struct PackedBinaryWriter<TWriter>
         {
             Type genericTypeDefinition = typeof(T).GetGenericTypeDefinition();
             if (genericTypeDefinition == typeof(ReadOnlyMemory<>)) return writer.WriteRecastReadOnlyMemory(value, ctx);
-
             if (genericTypeDefinition == typeof(Memory<>)) return writer.WriteRecastMemory(value, ctx);
-
             if (genericTypeDefinition == typeof(ReadOnlySpan<>)) return writer.WriteRecastReadOnlySpan(value, ctx);
+            if (genericTypeDefinition == typeof(ImmutableArray<>)) return writer.WriteRecastImmutableArray(value, ctx);
         }
 
         writer.ThrowUnknownType(typeof(T));

@@ -6,6 +6,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using Mono.Options;
 using VaettirNet.Cryptography;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Serialization;
 
 namespace VaettirNet.SecureShare.CommandLine.Commands;
@@ -18,7 +20,7 @@ internal class KeysCommand : BaseCommand<RunState>
     {
         protected override int Execute(RunState state, KeysCommand parent, ImmutableList<string> args)
         {
-            state.Algorithm.Create(Guid.NewGuid(), out PrivateClientInfo keys, out _);
+            state.Algorithm.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo keys, out _);
             state.Keys = keys;
             return 0;
         }
@@ -78,7 +80,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 unprotected = decrypted[..decBytes];
             }
 
-            state.Keys = PackedBinaryObjectSerializer<PrivateClientInfo>.Create().Deserialize(unprotected);
+            state.Keys = PackedBinaryObjectSerializer<PrivateKeyInfo>.Create().Deserialize(unprotected);
             return 0;
         }
     }
@@ -112,7 +114,7 @@ internal class KeysCommand : BaseCommand<RunState>
                 return 1;
             }
 
-            var serializer = PackedBinaryObjectSerializer<PrivateClientInfo>.Create();
+            var serializer = PackedBinaryObjectSerializer<PrivateKeyInfo>.Create();
             using RentedSpan<byte> unprotected = SpanHelpers.GrowingSpan(
                 stackalloc byte[200],
                 (Span<byte> span, out int cb) => serializer.TrySerialize(state.Keys, span, out cb),

@@ -17,6 +17,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\QRSync\QRSync.csproj"/>
+        <ProjectReference Include="..\SecureShare.Common\SecureShare.Common.csproj" />
     </ItemGroup>
 
     <ItemGroup>

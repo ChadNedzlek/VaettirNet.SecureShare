@@ -1,5 +1,9 @@
 using System;
+using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
 
@@ -7,14 +11,15 @@ namespace VaettirNet.TreeFormat;
 public sealed class NodeRecord : ISignable
 {
     [PackedBinaryConstructor]
-    public NodeRecord(ReadOnlyMemory<byte> parent, NodeValue value)
+    public NodeRecord(NodeValue value, params IEnumerable<ReadOnlyMemory<byte>> parentSignatures)
     {
-        Parent = parent;
+        ParentSignatures = parentSignatures.ToImmutableArray();
         Value = value;
     }
 
     [PackedBinaryMember(1)]
-    public ReadOnlyMemory<byte> Parent { get; }
+    public ImmutableArray<ReadOnlyMemory<byte>> ParentSignatures { get; }
+
     [PackedBinaryMember(2)]
     public NodeValue Value { get; }
 
@@ -22,10 +27,19 @@ public sealed class NodeRecord : ISignable
     {
         cb = 0;
         Span<byte> working = destination;
-        if (!Parent.Span.TryCopyTo(working)) return false;
-        working = working.Slice(Parent.Length);
+        BinaryPrimitives.WriteInt32BigEndian(destination, ParentSignatures.Length);
+        working = working.Slice(4);
+        cb += 4;
+        foreach (ReadOnlyMemory<byte> parent in ParentSignatures)
+        {
+            if (!parent.Span.TryCopyTo(working)) return false;
+            cb += parent.Span.Length;
+            working = working.Slice(parent.Span.Length);
+        }
+
         if (!Value.TryGetDataToSign(working, out int cbValue)) return false;
-        cb = Parent.Length + cbValue;
+
+        cb += cbValue;
         return true;
     }
 }

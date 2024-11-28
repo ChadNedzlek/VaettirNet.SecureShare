@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
@@ -38,9 +40,9 @@ public class VaultConflictResolver
     public bool TryAutoResolveConflicts(VaultConflictResult result, RefSigner signer, out ValidatedVaultDataSnapshot data)
     {
         LiveVaultData liveVault = LiveVaultData.FromSnapshot(result.BaseVault);
-        foreach (VaultConflictItem? item in result.Items)
+        foreach (VaultConflictItem item in result.Items)
         {
-            if (!item.TryGetAutoResolution(out VaultResolutionItem? resolution))
+            if (!item.TryGetAutoResolution(out VaultResolutionItem resolution))
             {
                 data = default;
                 return false;
@@ -83,7 +85,7 @@ public class VaultConflictResolver
                     continue;
                 }
                 
-                VaultClientEntry? originalEntry = originalClient.Map(client => client, _ => null);
+                VaultClientEntry originalEntry = originalClient.Map(client => client, _ => null);
 
                 if (localClient.Equals(originalClient))
                 {
@@ -140,7 +142,7 @@ public class VaultConflictResolver
                 }
             }
 
-            void ResolveVaultConflicts(UntypedVaultSnapshot? originalVault, UntypedVaultSnapshot remoteVault, UntypedVaultSnapshot localVault)
+            void ResolveVaultConflicts(UntypedVaultSnapshot originalVault, UntypedVaultSnapshot remoteVault, UntypedVaultSnapshot localVault)
             {
                 HashSet<Guid> secretIds = localVault.Secrets.Select(s => s.Id).Concat(localVault.RemovedSecrets.Select(s => s.Id)).ToHashSet();
                 foreach (Guid id in secretIds)
@@ -162,7 +164,7 @@ public class VaultConflictResolver
                         );
                         continue;
                     }
-                    UntypedSealedSecret? originalSecret  = originalEntry.Map(client => client, _ => null);
+                    UntypedSealedSecret originalSecret  = originalEntry.Map(client => client, _ => null);
 
                     if (localEntry.Equals(originalEntry))
                     {

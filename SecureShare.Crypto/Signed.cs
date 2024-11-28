@@ -8,7 +8,7 @@ namespace VaettirNet.SecureShare.Crypto;
 public class Signed<T> : IBinarySerializable<Signed<T>>
     where T : ISignable
 {
-    [PackedBinaryMember(1)] private T _payload;
+    [PackedBinaryMember(1)] private readonly T _payload;
 
     public Signed(T payload, Guid signer, ReadOnlyMemory<byte> signature)
     {
@@ -23,12 +23,15 @@ public class Signed<T> : IBinarySerializable<Signed<T>>
     [PackedBinaryMember(2)]
     public ReadOnlyMemory<byte> Signature { get; private init; }
 
+    public static IBinarySerializer<Signed<T>> GetBinarySerializer()
+    {
+        return PackedBinaryObjectSerializer<Signed<T>>.Create();
+    }
+
     public T DangerousGetPayload()
     {
         return _payload;
     }
-
-    public static IBinarySerializer<Signed<T>> GetBinarySerializer() => PackedBinaryObjectSerializer<Signed<T>>.Create();
 }
 
 public static class Signed

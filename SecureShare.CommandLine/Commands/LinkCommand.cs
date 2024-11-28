@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Mono.Options;
 using VaettirNet.PackedBinarySerialization.Attributes;
 using VaettirNet.SecureShare.CommandLine.Services;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Sync;
@@ -22,19 +24,19 @@ internal class LinkCommand : RootCommand<RunState>
     [Command("initialize|init|i")]
     internal class InitializeCommand : ChildCommand<RunState, LinkCommand>
     {
-        private bool _storeInVault;
-        private string _filePath;
-        private string _filePassword;
-        private string _accessKey;
-        private string _secretKey;
-        private string _url;
-        private string _bucket;
-        private string _name;
-        private string _region;
+        private readonly VaultConflictResolver _conflictResolver;
 
         private readonly CommandPrompt _prompt;
         private readonly VaultSnapshotSerializer _vaultSerializer;
-        private readonly VaultConflictResolver _conflictResolver;
+        private string _accessKey;
+        private string _bucket;
+        private string _filePassword;
+        private string _filePath;
+        private string _name;
+        private string _region;
+        private string _secretKey;
+        private bool _storeInVault;
+        private string _url;
 
         public InitializeCommand(CommandPrompt prompt, VaultSnapshotSerializer vaultSerializer, VaultConflictResolver conflictResolver)
         {
@@ -71,10 +73,7 @@ internal class LinkCommand : RootCommand<RunState>
             if (_storeInVault)
             {
                 int res = StoreInVault(state);
-                if (res != 0)
-                {
-                    return res;
-                }
+                if (res != 0) return res;
             }
 
             state.Sync = new DigitalOceanSpacesSync(new DigitalOceanConfig(_bucket, _region, _name, _accessKey, _secretKey), _vaultSerializer);
@@ -118,7 +117,7 @@ internal class LinkCommand : RootCommand<RunState>
                 {
                     ValidatedVaultDataSnapshot validatedConflict = signedConflictingSnapshot.Validate(state.Algorithm);
                     _prompt.WriteWarning("Conflict detected during vault upload...");
-                    if (!validatedConflict.TryGetSignerPublicInfo(out PublicClientInfo signer))
+                    if (!validatedConflict.TryGetSignerPublicInfo(out PublicKeyInfo signer))
                     {
                         _prompt.WriteError("No trusted signer found");
                         if (!_prompt.Confirm("Discard remote (unsigned) changes and replace with local version? "))
@@ -159,22 +158,16 @@ internal class LinkCommand : RootCommand<RunState>
 
                     VaultConflictResult conflictResult = _conflictResolver.Resolve(state.LoadedSnapshot, conflictingSnapshot, vaultDataSnapshot);
                     if (_conflictResolver.TryAutoResolveConflicts(conflictResult, state.Signer, out ValidatedVaultDataSnapshot newSnapshot))
-                    {
                         if (_prompt.Confirm("Auto-resolve possible. Auto-resolve?"))
                         {
-                            PutVaultResult conflictUploadResult = await state.Sync.PutVaultAsync(newSnapshot, etag: result.CacheKey);
-                            if (conflictUploadResult.Succeeded)
-                            {
-                                return 0;
-                            }
+                            PutVaultResult conflictUploadResult = await state.Sync.PutVaultAsync(newSnapshot, result.CacheKey);
+                            if (conflictUploadResult.Succeeded) return 0;
                             _prompt.WriteWarning("Failed to resolve conflict... retrying...");
                             continue;
                         }
-                    }
 
                     PartialVaultConflictResolution resolution = conflictResult.GetResolver().WithAutoResolutions();
                     while (resolution.TryGetNextUnresolved(out VaultConflictItem conflict))
-                    {
                         switch (conflict)
                         {
                             case ClientConflictItem clientConflictItem:
@@ -204,20 +197,16 @@ internal class LinkCommand : RootCommand<RunState>
                                         client =>
                                         {
                                             if (client is null)
-                                            {
                                                 _prompt.WriteLine("  {name}: <none>");
-                                            }
                                             else
-                                            {
                                                 _prompt.WriteLine(
                                                     $"""
                                                       {name}: '{client.Description}'
                                                         Id: {client.ClientId}
                                                         Keys:{Convert.ToBase64String(client.SigningKey.Span)}
-                                                        Authorized: {(client.Authorizer == state.Keys.ClientId ? "this client" : client.Authorizer)}
+                                                        Authorized: {(client.Authorizer == state.Keys.Id ? "this client" : client.Authorizer)}
                                                     """
                                                 );
-                                            }
                                         },
                                         removed => _prompt.WriteWarning(
                                             $"""
@@ -232,12 +221,10 @@ internal class LinkCommand : RootCommand<RunState>
                                 break;
                             case VaultListConflictItem listItem: break;
                         }
-                    }
 
                     char Resolve()
                     {
                         while (true)
-                        {
                             switch (_prompt.Prompt("Accept [l]ocal or [r]emote (or [a]bort)? ").ToLowerInvariant())
                             {
                                 case "local":
@@ -253,7 +240,6 @@ internal class LinkCommand : RootCommand<RunState>
                                     _prompt.WriteError("Invalid response");
                                     break;
                             }
-                        }
                     }
                 }
             }
@@ -273,7 +259,9 @@ internal class LinkCommand : RootCommand<RunState>
             List<SealedSecret<LinkMetadata, LinkProtected>> existingValues = store.GetSecrets().ToList();
             if (existingValues.Count == 0)
             {
-                writer.Update(transformer.Seal(UnsealedSecret.Create(new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
+                writer.Update(
+                    transformer.Seal(UnsealedSecret.Create(new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey)))
+                );
             }
             else if (existingValues.Count >= 1)
             {
@@ -282,18 +270,25 @@ internal class LinkCommand : RootCommand<RunState>
                     existingValues[1].Attributes.Region == _region &&
                     existingValues[1].Attributes.Name == _name)
                 {
-
                     UnsealedSecret<LinkMetadata, LinkProtected> unsealed = transformer.Unseal(existingValues[1]);
                     if (unsealed.Protected.SecretKey == _secretKey)
                     {
                         _prompt.WriteLine("Access key already stored, no action taken");
                         return 0;
                     }
-
                 }
-                writer.Update(transformer.Seal(UnsealedSecret.Create(existingValues[1].Id, new LinkMetadata(_accessKey, _bucket, _region, _name), new LinkProtected(_secretKey))));
+
+                writer.Update(
+                    transformer.Seal(
+                        UnsealedSecret.Create(
+                            existingValues[1].Id,
+                            new LinkMetadata(_accessKey, _bucket, _region, _name),
+                            new LinkProtected(_secretKey)
+                        )
+                    )
+                );
             }
-            
+
             state.VaultManager.Vault.UpdateVault(store.ToSnapshot());
             return 0;
         }
@@ -302,15 +297,15 @@ internal class LinkCommand : RootCommand<RunState>
         {
             return new OptionSet
             {
-                {"access-key|ak|a=", "Digital Ocean Spaces Access Key", v => _accessKey = v},
-                {"secret-key|sk|s=", "Digital Ocean Spaces Secret Key", v => _secretKey = v},
-                {"url|u=", "Target URL", v => _url = v},
-                {"store-in-vault|vault|v", "Store the credentials in the currently open vault", v => _storeInVault = v is not null},
-                {"output|file|o=", "Store the credentials in target file", v => _filePath = v},
-                {"password|pw|p=", "File store password", v => _filePassword = v},
-                {"bucket-name|bucket|bn|b=", "Bucket name", v => _bucket = v},
-                {"name|n=", "Storage name", v => _name = v},
-                {"region|r=", "Spaces region name (default sfo3", v => _region = v},
+                { "access-key|ak|a=", "Digital Ocean Spaces Access Key", v => _accessKey = v },
+                { "secret-key|sk|s=", "Digital Ocean Spaces Secret Key", v => _secretKey = v },
+                { "url|u=", "Target URL", v => _url = v },
+                { "store-in-vault|vault|v", "Store the credentials in the currently open vault", v => _storeInVault = v is not null },
+                { "output|file|o=", "Store the credentials in target file", v => _filePath = v },
+                { "password|pw|p=", "File store password", v => _filePassword = v },
+                { "bucket-name|bucket|bn|b=", "Bucket name", v => _bucket = v },
+                { "name|n=", "Storage name", v => _name = v },
+                { "region|r=", "Spaces region name (default sfo3", v => _region = v }
             };
         }
     }
@@ -318,15 +313,6 @@ internal class LinkCommand : RootCommand<RunState>
     [PackedBinarySerializable]
     public class LinkMetadata : FullSerializable<LinkMetadata>
     {
-        [PackedBinaryMember(1)]
-        public string AccessKey { get; private set; }
-        [PackedBinaryMember(2)]
-        public string Bucket { get; private set; }
-        [PackedBinaryMember(3)]
-        public string Region { get; private set; }
-        [PackedBinaryMember(4)]
-        public string Name { get; private set; }
-
         public LinkMetadata(string accessKey, string bucket, string region, string name)
         {
             AccessKey = accessKey;
@@ -334,17 +320,29 @@ internal class LinkCommand : RootCommand<RunState>
             Region = region;
             Name = name;
         }
+
+        [PackedBinaryMember(1)]
+        public string AccessKey { get; }
+
+        [PackedBinaryMember(2)]
+        public string Bucket { get; }
+
+        [PackedBinaryMember(3)]
+        public string Region { get; }
+
+        [PackedBinaryMember(4)]
+        public string Name { get; }
     }
 
     [PackedBinarySerializable]
     public class LinkProtected : BinarySerializable<LinkProtected>
     {
-        [PackedBinaryMember(1)]
-        public string SecretKey { get; private set; }
-            
         public LinkProtected(string secretKey)
         {
             SecretKey = secretKey;
         }
+
+        [PackedBinaryMember(1)]
+        public string SecretKey { get; }
     }
 }

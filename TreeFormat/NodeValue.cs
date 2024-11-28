@@ -1,5 +1,6 @@
 using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
 

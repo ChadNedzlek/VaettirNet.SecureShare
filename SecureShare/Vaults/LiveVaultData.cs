@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
@@ -17,10 +18,10 @@ public class LiveVaultData
     private readonly List<UntypedVaultSnapshot> _vaults;
 
     public LiveVaultData(
-        IEnumerable<VaultClientEntry>? clients = null,
-        IEnumerable<BlockedVaultClientEntry>? blockedClients = null,
-        IEnumerable<UntypedVaultSnapshot>? vaults = null,
-        ImmutableList<Validated<ClientModificationRecord>>? modificationRecords = null,
+        IEnumerable<VaultClientEntry> clients = null,
+        IEnumerable<BlockedVaultClientEntry> blockedClients = null,
+        IEnumerable<UntypedVaultSnapshot> vaults = null,
+        ImmutableList<Validated<ClientModificationRecord>> modificationRecords = null,
         uint baseVersion = 0
     )
     {
@@ -44,7 +45,7 @@ public class LiveVaultData
 
         VaultClientEntry existing = _clients[existingIndex];
         Validated<ClientModificationRecord> record = signer.Algorithm.Sign(
-            new ClientModificationRecord(ClientAction.KeyChange, client.ClientId, existing.SigningKey, existing.EncryptionKey, signer.Keys.ClientId),
+            new ClientModificationRecord(ClientAction.KeyChange, client.ClientId, existing.SigningKey, existing.EncryptionKey, signer.Keys.Id),
             signer.Keys
         );
         UpdateClient(client, [record]);
@@ -62,7 +63,7 @@ public class LiveVaultData
         _clients.Add(client);
         _modificationRecords.Add(
             signer.Algorithm.Sign(
-                new ClientModificationRecord(ClientAction.Added, client.ClientId, default, default, signer.Keys.ClientId),
+                new ClientModificationRecord(ClientAction.Added, client.ClientId, default, default, signer.Keys.Id),
                 signer.Keys
             )
         );
@@ -76,7 +77,7 @@ public class LiveVaultData
             throw new ArgumentException("Modification record signer does not match client", nameof(record));
         }
         
-        if (!TryGetClient(record.Signer, out VaultClientEntry? signer)){
+        if (!TryGetClient(record.Signer, out VaultClientEntry signer)){
             throw new ArgumentException("Signature is not present in vault", nameof(record));
         }
 
@@ -102,7 +103,7 @@ public class LiveVaultData
     public void BlockClient(BlockedVaultClientEntry blocked, ImmutableList<Validated<ClientModificationRecord>> records, VaultCryptographyAlgorithm algorithm)
     {
         Signed<ClientModificationRecord> record = records[^1];
-        if (!TryGetClient(record.Signer, out VaultClientEntry? signer)){
+        if (!TryGetClient(record.Signer, out VaultClientEntry signer)){
             throw new ArgumentException("Signature is not present in vault", nameof(record));
         }
 
@@ -131,7 +132,7 @@ public class LiveVaultData
         _blockedClients.Add(blocked);
         _modificationRecords.Add(
             signer.Algorithm.Sign(
-                new ClientModificationRecord(ClientAction.Blocked, blocked.ClientId, default, default, signer.Keys.ClientId),
+                new ClientModificationRecord(ClientAction.Blocked, blocked.ClientId, default, default, signer.Keys.Id),
                 signer.Keys
             )
         );
@@ -149,7 +150,7 @@ public class LiveVaultData
 
     public VaultClientEntry GetClient(Guid id)
     {
-        VaultClientEntry? client = _clients.FirstOrDefault(c => c.ClientId == id);
+        VaultClientEntry client = _clients.FirstOrDefault(c => c.ClientId == id);
         if (client is null) throw new KeyNotFoundException();
 
         return client;
@@ -166,7 +167,7 @@ public class LiveVaultData
         return _vaults.Select(v => v.Id);
     }
 
-    public OpenVaultReader<TAttribute, TProtected> GetStoreOrDefault<TAttribute, TProtected>(string? name = null)
+    public OpenVaultReader<TAttribute, TProtected> GetStoreOrDefault<TAttribute, TProtected>(string name = null)
         where TAttribute : IBinarySerializable<TAttribute>, IJsonSerializable<TAttribute>
         where TProtected : IBinarySerializable<TProtected>
     {
@@ -222,7 +223,7 @@ public class LiveVaultData
         int index = _vaults.FindIndex(v => v.Id.Equals(id));
         if (index >= 0)
         {
-            UntypedSealedSecret? secret = _vaults[index].Secrets.FirstOrDefault(s => s.Id == secretId);
+            UntypedSealedSecret secret = _vaults[index].Secrets.FirstOrDefault(s => s.Id == secretId);
             if (secret == null)
                 return;
             

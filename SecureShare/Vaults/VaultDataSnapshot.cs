@@ -15,19 +15,19 @@ namespace VaettirNet.SecureShare.Vaults;
 public class UnvalidatedVaultDataSnapshot : BinarySerializable<UnvalidatedVaultDataSnapshot>, ISignable
 {
     [PackedBinaryMember(1)]
-    private ImmutableSortedSet<VaultClientEntry>? _clients;
+    private ImmutableSortedSet<VaultClientEntry> _clients;
     public ImmutableSortedSet<VaultClientEntry> Clients => _clients ?? [];
 
     [PackedBinaryMember(2)]
-    private ImmutableSortedSet<BlockedVaultClientEntry>? _blockedClients;
+    private ImmutableSortedSet<BlockedVaultClientEntry> _blockedClients;
     public ImmutableSortedSet<BlockedVaultClientEntry> BlockedClients => _blockedClients ?? ImmutableSortedSet<BlockedVaultClientEntry>.Empty;
 
     [PackedBinaryMember(3)]
-    private ImmutableList<Signed<ClientModificationRecord>>? _clientModifications;
+    private ImmutableList<Signed<ClientModificationRecord>> _clientModifications;
     public ImmutableList<Signed<ClientModificationRecord>> ClientModifications => _clientModifications ?? ImmutableList<Signed<ClientModificationRecord>>.Empty;
 
     [PackedBinaryMember(4)]
-    private ImmutableSortedSet<UntypedVaultSnapshot>? _vaults;
+    private ImmutableSortedSet<UntypedVaultSnapshot> _vaults;
     public ImmutableSortedSet<UntypedVaultSnapshot> Vaults => _vaults ?? ImmutableSortedSet<UntypedVaultSnapshot>.Empty;
 
     [PackedBinaryMember(5)]

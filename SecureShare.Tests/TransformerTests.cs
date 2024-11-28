@@ -1,4 +1,6 @@
+using System;
 using FluentAssertions;
+using NUnit.Framework;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Tests;

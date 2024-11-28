@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Secrets;
 
 namespace VaettirNet.SecureShare.Vaults;
@@ -15,28 +16,28 @@ public class UntypedVaultSnapshot : IComparable<UntypedVaultSnapshot>, IComparab
     public VaultIdentifier Id { get; private set; }
 
     [PackedBinaryMember(2)]
-    private ImmutableSortedSet<UntypedSealedSecret>? _secrets;
+    private ImmutableSortedSet<UntypedSealedSecret> _secrets;
     public ImmutableSortedSet<UntypedSealedSecret> Secrets => _secrets ?? [];
 
     [PackedBinaryMember(3)]
-    private ImmutableSortedSet<RemovedSecretRecord>? _removedSecrets;
+    private ImmutableSortedSet<RemovedSecretRecord> _removedSecrets;
     public ImmutableSortedSet<RemovedSecretRecord> RemovedSecrets => _removedSecrets ?? [];
 
-    public UntypedVaultSnapshot(VaultIdentifier id, IEnumerable<UntypedSealedSecret>? secrets, IEnumerable<RemovedSecretRecord>? removedSecrets)
+    public UntypedVaultSnapshot(VaultIdentifier id, IEnumerable<UntypedSealedSecret> secrets, IEnumerable<RemovedSecretRecord> removedSecrets)
     {
         Id = id;
         _secrets = secrets?.ToImmutableSortedSet(UntypedSealedSecret.Comparer.Instance) ?? [];
         _removedSecrets = removedSecrets?.ToImmutableSortedSet(RemovedSecretRecord.Comparer.Instance) ?? [];
     }
 
-    public int CompareTo(UntypedVaultSnapshot? other)
+    public int CompareTo(UntypedVaultSnapshot other)
     {
         if (ReferenceEquals(this, other)) return 0;
         if (other is null) return 1;
         return Id.CompareTo(other.Id);
     }
 
-    public int CompareTo(object? obj)
+    public int CompareTo(object obj)
     {
         if (obj is null) return 1;
         if (ReferenceEquals(this, obj)) return 0;

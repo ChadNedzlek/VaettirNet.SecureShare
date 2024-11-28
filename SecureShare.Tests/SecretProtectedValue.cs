@@ -9,5 +9,8 @@ public class SecretProtectedValue : BinarySerializable<SecretProtectedValue>
     [PackedBinaryMember(1)]
     public string ProtValue { get; set; }
 
-    public static implicit operator SecretProtectedValue(string value) => new() { ProtValue = value };
+    public static implicit operator SecretProtectedValue(string value)
+    {
+        return new SecretProtectedValue { ProtValue = value };
+    }
 }

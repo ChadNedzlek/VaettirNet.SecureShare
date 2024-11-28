@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using VaettirNet.SecureShare.Common;
 
 namespace VaettirNet.PackedBinarySerialization;
 
@@ -78,7 +79,7 @@ public ref partial struct PackedBinaryReader<TReader>
         if (type.IsEnum) return ReadEnum<T>(ctx);
 
         if (_serializer.TryGetReadSurrogate(type, out Type? targetType, out Delegate? transform))
-            return GetMember<RefInFunc<PackedBinaryReader<TReader>, Delegate, PackedBinarySerializationContext, T>>(nameof(WriteSurrogate), type, targetType, typeof(T))
+            return GetMember<RefFunc<PackedBinaryReader<TReader>, Delegate, PackedBinarySerializationContext, T>>(nameof(WriteSurrogate), type, targetType, typeof(T))
                 .Invoke(ref this, transform, ctx);
 
         if (!type.IsValueType)

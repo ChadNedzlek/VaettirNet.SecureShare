@@ -1,3 +1,4 @@
+using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.SecureShare.Tests;

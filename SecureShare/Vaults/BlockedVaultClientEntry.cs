@@ -23,14 +23,14 @@ public class BlockedVaultClientEntry : IBinarySerializable<BlockedVaultClientEnt
         PublicKey = publicKey;
     }
 
-    public int CompareTo(BlockedVaultClientEntry? other)
+    public int CompareTo(BlockedVaultClientEntry other)
     {
         if (ReferenceEquals(this, other)) return 0;
         if (other is null) return 1;
         return ClientId.CompareTo(other.ClientId);
     }
 
-    public int CompareTo(object? obj)
+    public int CompareTo(object obj)
     {
         if (obj is null) return 1;
         if (ReferenceEquals(this, obj)) return 0;

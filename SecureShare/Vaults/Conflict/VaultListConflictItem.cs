@@ -1,15 +1,16 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
 
 public class VaultListConflictItem : VaultConflictItem
 {
-    public readonly UntypedVaultSnapshot? BaseEntry;
-    public readonly UntypedVaultSnapshot? Local;
-    public readonly UntypedVaultSnapshot? Remote;
+    public readonly UntypedVaultSnapshot BaseEntry;
+    public readonly UntypedVaultSnapshot Local;
+    public readonly UntypedVaultSnapshot Remote;
 
-    public VaultListConflictItem(UntypedVaultSnapshot? baseEntry, UntypedVaultSnapshot? local, UntypedVaultSnapshot? remote)
+    public VaultListConflictItem(UntypedVaultSnapshot baseEntry, UntypedVaultSnapshot local, UntypedVaultSnapshot remote)
     {
         BaseEntry = baseEntry;
         Local = local;
@@ -34,7 +35,7 @@ public class VaultListConflictItem : VaultConflictItem
         return false;
     }
 
-    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem? resolution, VaultCryptographyAlgorithm algorithm)
+    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem resolution, VaultCryptographyAlgorithm algorithm)
     {
         if (resolution == VaultResolutionItem.AcceptLocal)
         {
@@ -50,7 +51,7 @@ public class VaultListConflictItem : VaultConflictItem
 
         return false;
 
-        void NewFunction(LiveVaultData vault, UntypedVaultSnapshot? store)
+        void NewFunction(LiveVaultData vault, UntypedVaultSnapshot store)
         {
             if (BaseEntry == null)
             {

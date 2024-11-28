@@ -31,4 +31,8 @@
         </Compile>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\SecureShare.Common\SecureShare.Common.csproj" />
+    </ItemGroup>
+
 </Project>

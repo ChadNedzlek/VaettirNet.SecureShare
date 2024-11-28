@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.IO;
 using VaettirNet.SecureShare.CommandLine.Services;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Vaults;
 
 namespace VaettirNet.SecureShare.CommandLine.Commands;
@@ -21,7 +22,7 @@ internal class VaultCommand : BaseCommand<RunState>
                 Console.ResetColor();
             }
 
-            VaultManager manager = VaultManager.Initialize(args.Count > 0 ? args[0] : "vault", state.Algorithm, out PrivateClientInfo keys);
+            VaultManager manager = VaultManager.Initialize(args.Count > 0 ? args[0] : "vault", state.Algorithm, out PrivateKeyInfo keys);
             state.Keys = keys;
             state.LoadedSnapshot = manager.Vault.GetSnapshot(new RefSigner(state.Algorithm, keys));
             state.VaultManager = manager;

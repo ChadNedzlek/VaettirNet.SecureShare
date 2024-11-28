@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using VaettirNet.PackedBinarySerialization;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 
@@ -19,7 +20,7 @@ public class VaultSnapshotSerializer
             {
                 AddSignedType<ClientModificationRecord>(model);
                 AddSignedType<RemovedSecretRecord>(model);
-                PackedBinarySerializer.TypeBuilder? sealedValueType = model.AddType<UntypedSealedSecret>();
+                PackedBinarySerializer.TypeBuilder sealedValueType = model.AddType<UntypedSealedSecret>();
                 int fieldNumber = 1;
                 foreach (Type type in sealedSecretTypes)
                 {

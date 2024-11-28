@@ -4,8 +4,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj" />
-      <ProjectReference Include="..\SecureShare.Serialization\SecureShare.Serialization.csproj" />
+        <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj"/>
+        <ProjectReference Include="..\SecureShare.Common\SecureShare.Common.csproj"/>
+        <ProjectReference Include="..\SecureShare.Serialization\SecureShare.Serialization.csproj"/>
     </ItemGroup>
 
 </Project>

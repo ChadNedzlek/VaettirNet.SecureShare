@@ -5,7 +5,7 @@ namespace VaettirNet.QRSync;
 
 internal static partial class Interop
 {
-    internal static class SystemMetric 
+    internal static class SystemMetric
     {
         public const int VirtualScreenX = 76;
         public const int VirtualScreenY = 77;
@@ -17,7 +17,7 @@ internal static partial class Interop
     {
         [LibraryImport("user32.dll")]
         private static partial int GetSystemMetrics(int metric);
-        
+
         public static Rectangle GetVirtualScreenBounds()
         {
             return new Rectangle(

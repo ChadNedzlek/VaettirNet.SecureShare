@@ -14,7 +14,7 @@ public class PackedBinaryObjectSerializer<T> : IBinarySerializer<T>
         _serializer = new PackedBinarySerializer();
         _serializer.AddType<T>();
         _serializer.SetSurrogate<DateTimeOffset, long>(DateTimeOffsetToTicksUtc, TicksToDateTimeOffsetUtc);
-        foreach (Type? type in additionalTypes) _serializer.AddType(type);
+        foreach (Type type in additionalTypes) _serializer.AddType(type);
     }
 
     private PackedBinaryObjectSerializer(Action<PackedBinarySerializer> customize)
@@ -68,7 +68,7 @@ public class PackedBinaryObjectSerializer<T> : IBinarySerializer<T>
         if (additionalTypes.IsEmpty)
             return Instance;
 
-        foreach (Type? type in additionalTypes)
+        foreach (Type type in additionalTypes)
         {
         }
 

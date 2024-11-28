@@ -1,5 +1,8 @@
 using System;
+using System.Drawing.Imaging;
 using System.IO;
+using Net.Codecrete.QrCodeGenerator;
+using SkiaSharp;
 
 namespace VaettirNet.QRSync
 {

@@ -1,4 +1,6 @@
+using System;
 using FluentAssertions.Formatting;
+using NUnit.Framework;
 
 namespace VaettirNet.SecureShare.Tests;
 

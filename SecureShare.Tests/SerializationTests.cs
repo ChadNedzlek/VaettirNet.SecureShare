@@ -1,6 +1,10 @@
+using System;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using NUnit.Framework;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Serialization;
 using VaettirNet.SecureShare.Vaults;
@@ -52,7 +56,7 @@ public class SerializationTests
     {
         TestSignable value = new() { Value = 12345 };
         VaultCryptographyAlgorithm alg = new();
-        alg.Create(Guid.NewGuid(), out PrivateClientInfo privateInfo, out PublicClientInfo publicInfo);
+        alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo privateInfo, out PublicKeyInfo publicInfo);
         Validated<TestSignable> signed = alg.Sign(value, privateInfo);
         Span<byte> buffer = stackalloc byte[1000];
         IBinarySerializer<Signed<TestSignable>> serializer = Signed<TestSignable>.GetBinarySerializer();

@@ -1,13 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
-      <PackageReference Include="VaettirNet.CodeGeneration.DelegateImplementation" Version="0.0.5" />
+        <PackageReference Include="VaettirNet.CodeGeneration.DelegateImplementation" Version="0.0.5"/>
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj" />
+        <ProjectReference Include="..\PackedBinarySerialization\PackedBinarySerialization.csproj"/>
     </ItemGroup>
 
 </Project>

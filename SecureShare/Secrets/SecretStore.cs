@@ -15,9 +15,9 @@ public class OpenVaultDEPRECATED<TAttributes, TProtected> : IEnumerable<SealedSe
     private readonly Dictionary<Guid, SealedSecret<TAttributes, TProtected>> _secrets;
     private readonly HashSet<RemovedSecretRecord> _deleted;
     private readonly SecretTransformer _transformer;
-    private readonly string? _name;
+    private readonly string _name;
 
-    public OpenVaultDEPRECATED(string? name, SecretTransformer transformer)
+    public OpenVaultDEPRECATED(string name, SecretTransformer transformer)
     {
         _name = name;
         _transformer = transformer;
@@ -25,7 +25,7 @@ public class OpenVaultDEPRECATED<TAttributes, TProtected> : IEnumerable<SealedSe
         _deleted = [];
     }
 
-    public OpenVaultDEPRECATED(string? name, UntypedVaultSnapshot vault, SecretTransformer transformer)
+    public OpenVaultDEPRECATED(string name, UntypedVaultSnapshot vault, SecretTransformer transformer)
     {
         _name = name;
         _transformer = transformer;
@@ -70,7 +70,7 @@ public class OpenVaultDEPRECATED<TAttributes, TProtected> : IEnumerable<SealedSe
 
     public void Set(SealedSecret<TAttributes, TProtected> secret)
     {
-        if (_secrets.TryGetValue(secret.Id, out SealedSecret<TAttributes, TProtected>? existing))
+        if (_secrets.TryGetValue(secret.Id, out SealedSecret<TAttributes, TProtected> existing))
         {
             _secrets[secret.Id] = secret.WithVersion(existing.Version + 1);
         }
@@ -82,7 +82,7 @@ public class OpenVaultDEPRECATED<TAttributes, TProtected> : IEnumerable<SealedSe
 
     public void Remove(Guid id)
     {
-        if (_secrets.Remove(id, out SealedSecret<TAttributes, TProtected>? secret))
+        if (_secrets.Remove(id, out SealedSecret<TAttributes, TProtected> secret))
         {
             _deleted.Add(new RemovedSecretRecord(secret.Id, secret.Version, secret.HashBytes));
         }

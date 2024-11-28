@@ -6,6 +6,7 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using VaettirNet.PackedBinarySerialization.Attributes;
+using VaettirNet.SecureShare.Common;
 
 namespace VaettirNet.PackedBinarySerialization;
 
@@ -160,7 +161,7 @@ public ref partial struct PackedBinaryReader<TReader>
     private T CreateDynamicObject<T>(Type targetType, PackedBinarySerializationContext ctx)
         where T : notnull
     {
-        var callback = (RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>)s_readyDynamicCache.GetOrCreate(
+        var callback = (RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>)s_readyDynamicCache.GetOrCreate(
             ref this,
             (typeof(T), targetType),
             BuildCreateCallback
@@ -168,7 +169,7 @@ public ref partial struct PackedBinaryReader<TReader>
 
         return callback(ref this, ctx);
 
-        RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> BuildCreateCallback(
+        RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> BuildCreateCallback(
             (Type baseType, Type derivedType) key,
             scoped ref PackedBinaryReader<TReader> reader
         )
@@ -179,7 +180,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 .FirstOrDefault(c => c.attr is not null)
                 .ctor;
 
-            RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> create;
+            RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> create;
             List<MemberInfo> inCtor = [];
             if (refCtor is not null)
             {
@@ -187,11 +188,11 @@ public ref partial struct PackedBinaryReader<TReader>
             }
             else
             {
-                create = (RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>)s_constructCache.GetOrCreate(
+                create = (RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>)s_constructCache.GetOrCreate(
                     ref reader,
                     (typeof(T), targetType),
                     ((Type baseType, Type derivedType) types, ref PackedBinaryReader<TReader> _) =>
-                        GetMember<RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>>(nameof(Construct), types.baseType, types.derivedType)
+                        GetMember<RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>>(nameof(Construct), types.baseType, types.derivedType)
                 );
             }
 
@@ -202,7 +203,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 return instance;
             };
 
-            RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> BuildCreateMethod(
+            RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T> BuildCreateMethod(
                 scoped ref PackedBinaryReader<TReader> reader,
                 Type returnAs,
                 Type targetType,
@@ -211,7 +212,7 @@ public ref partial struct PackedBinaryReader<TReader>
             )
             {
                 var attr = reader.GetEffectiveTypeAttribute(targetType);
-                IEnumerable<MemberInfo> targetMembers = targetType!.GetMembers(
+                IEnumerable<MemberInfo> targetMembers = targetType.GetMembers(
                         BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
                     )
                     .Where(a => a.GetCustomAttribute<PackedBinaryMemberIgnoreAttribute>() is null);
@@ -296,7 +297,7 @@ public ref partial struct PackedBinaryReader<TReader>
                     }
                 }
 
-                foreach ((_, _, ParameterInfo parameter, _) in parameterOrder)
+                foreach ((_, Type memberType, ParameterInfo parameter, _) in parameterOrder)
                 {
                     switch (localIndex[parameter])
                     {
@@ -306,13 +307,18 @@ public ref partial struct PackedBinaryReader<TReader>
                         case 3: il.Emit(OpCodes.Ldloc_3); break;
                         case var i: il.Emit(OpCodes.Ldloc_S, i); break;
                     }
+
+                    if (memberType.IsValueType && !parameter.ParameterType.IsValueType)
+                    {
+                        il.Emit(OpCodes.Box, memberType);
+                    }
                 }
                 
                 il.Emit(OpCodes.Newobj, constructorInfo);
                 il.Emit(OpCodes.Ret);
                 
                 inCtor = ctorMembers.Select(m => m.member).ToList();
-                return callCtor.CreateDelegate<RefInFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>>();
+                return callCtor.CreateDelegate<RefFunc<PackedBinaryReader<TReader>, PackedBinarySerializationContext, T>>();
             }
         }
     }
@@ -357,7 +363,7 @@ public ref partial struct PackedBinaryReader<TReader>
         if (!targetType.IsAssignableTo(typeof(T)))
             throw new ArgumentException($"Type {targetType.Name} is not assignable to {typeof(T).Name}", nameof(targetType));
 
-        var combinedSetters = (RefInAction<PackedBinaryReader<TReader>, T, PackedBinarySerializationContext>)s_writeMembersCache.GetOrCreate(
+        var combinedSetters = (RefAction<PackedBinaryReader<TReader>, T, PackedBinarySerializationContext>)s_writeMembersCache.GetOrCreate(
             ref this,
             (typeof(T), targetType, instance.GetType()),
             BuildWriterDelegate
@@ -382,13 +388,13 @@ public ref partial struct PackedBinaryReader<TReader>
                     .OrderBy(x => x.attr!.Order)
                     .Select(x => x.member);
 
-            RefInAction<PackedBinaryReader<TReader>, T, PackedBinarySerializationContext>? writeAllMembersDelegate = null;
+            RefAction<PackedBinaryReader<TReader>, T, PackedBinarySerializationContext>? writeAllMembersDelegate = null;
             foreach (MemberInfo member in targetMembers)
             {
                 Type? memberType = ReflectionHelpers.GetMemberType(member);
                 if (memberType != null)
                 {
-                    var setter = GetMember<RefInAction<PackedBinaryReader<TReader>, T, MemberInfo, PackedBinarySerializationContext>>(
+                    var setter = GetMember<RefAction<PackedBinaryReader<TReader>, T, MemberInfo, PackedBinarySerializationContext>>(
                         nameof(WriteMemberTypeCast),
                         key.instanceType,
                         key.returnType,

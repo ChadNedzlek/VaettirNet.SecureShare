@@ -1,3 +1,5 @@
+using NUnit.Framework;
+
 namespace VaettirNet.SecureShare.Tests;
 
 public class SyncTests

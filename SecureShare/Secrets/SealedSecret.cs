@@ -34,8 +34,8 @@ public class SealedSecret<TAttributes, TProtected> : UntypedSealedSecret
         private static readonly Comparer<Guid?> s_comparer = Comparer<Guid?>.Default;
         public static Comparer Instance { get; } = new();
 
-        public int Compare(SealedSecret<TAttributes, TProtected>? x, SealedSecret<TAttributes, TProtected>? y) => s_comparer.Compare(x?.Id, y?.Id);
-        public int Compare(object? x, object? y) => s_comparer.Compare((x as SealedSecret<TAttributes, TProtected>)?.Id, (y as SealedSecret<TAttributes, TProtected>)?.Id);
+        public int Compare(SealedSecret<TAttributes, TProtected> x, SealedSecret<TAttributes, TProtected> y) => s_comparer.Compare(x?.Id, y?.Id);
+        public int Compare(object x, object y) => s_comparer.Compare((x as SealedSecret<TAttributes, TProtected>)?.Id, (y as SealedSecret<TAttributes, TProtected>)?.Id);
     }
 }
 

@@ -1,3 +1,9 @@
+using System;
+using System.IO;
+using FluentAssertions;
+using NUnit.Framework;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 using VaettirNet.SecureShare.Secrets;
 using VaettirNet.SecureShare.Vaults;
 
@@ -70,64 +76,18 @@ public class VaultTest
         Signed<UnvalidatedVaultDataSnapshot> roundTripped = serializer.Deserialize(stream);
         roundTripped.Should().BeEquivalentTo(signed, o =>
             {
-                o.ComparingByMembers<PublicClientInfo>();
+                o.ComparingByMembers<PublicKeyInfo>();
                 o.Using<ReadOnlyMemory<byte>, MemoryComparer<byte>>();
                 return o;
             }
         );
         roundTripped.DangerousGetPayload().Should().BeEquivalentTo(signed.DangerousGetPayload(), o =>
             {
-                o.ComparingByMembers<PublicClientInfo>();
+                o.ComparingByMembers<PublicKeyInfo>();
                 o.ComparingByMembers<VaultClientEntry>();
                 o.Using<ReadOnlyMemory<byte>, MemoryComparer<byte>>();
                 return o;
             }
         );
-    }
-}
-
-public class MemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>
-{
-    private readonly IEqualityComparer<T> _itemComparer;
-
-    public static readonly MemoryComparer<T> Default = new();
-    
-
-    public MemoryComparer() : this(EqualityComparer<T>.Default)
-    {
-    }
-
-    public MemoryComparer(IEqualityComparer<T> itemComparer)
-    {
-        _itemComparer = itemComparer;
-    }
-
-    public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-    {
-        if (x.Length != y.Length)
-        {
-            return false;
-        }
-
-        ReadOnlySpan<T> a = x.Span, b = y.Span;
-
-        for (int i = 0; i < x.Length; i++)
-        {
-            if (!_itemComparer.Equals(a[i], b[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public int GetHashCode(ReadOnlyMemory<T> obj)
-    {
-        HashCode h = new();
-        foreach(T i in obj.Span){
-            h.Add(_itemComparer.GetHashCode(i));
-        }
-        return h.ToHashCode();
     }
 }

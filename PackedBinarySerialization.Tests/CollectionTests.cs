@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using FluentAssertions;
 using NUnit.Framework;
+using VaettirNet.SecureShare.Common;
 
 namespace VaettirNet.PackedBinarySerialization.Tests;
 
@@ -143,48 +144,5 @@ public class CollectionTests
         s.Serialize(buffer, expected, options);
         var roundTrippedValue = s.Deserialize<ImmutableSortedSet<int>>(buffer.WrittenSpan, options);
         roundTrippedValue.Should().BeEquivalentTo(expected, o => o.Using(new MemoryComparer<int>()));
-    }
-
-    private class MemoryComparer<T> : IEqualityComparer<ReadOnlyMemory<T>>
-    {
-        private readonly IEqualityComparer<T> _itemComparer;
-
-        public MemoryComparer() : this(EqualityComparer<T>.Default)
-        {
-        }
-
-        public MemoryComparer(IEqualityComparer<T> itemComparer)
-        {
-            _itemComparer = itemComparer;
-        }
-
-        public bool Equals(ReadOnlyMemory<T> x, ReadOnlyMemory<T> y)
-        {
-            if (x.Length != y.Length)
-            {
-                return false;
-            }
-
-            ReadOnlySpan<T> a = x.Span, b = y.Span;
-
-            for (int i = 0; i < x.Length; i++)
-            {
-                if (!_itemComparer.Equals(a[i], b[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        public int GetHashCode(ReadOnlyMemory<T> obj)
-        {
-            HashCode h = new();
-            foreach(T i in obj.Span){
-                h.Add(_itemComparer.GetHashCode(i));
-            }
-            return h.ToHashCode();
-        }
     }
 }

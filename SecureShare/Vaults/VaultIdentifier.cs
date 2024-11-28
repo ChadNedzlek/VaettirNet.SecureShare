@@ -28,13 +28,13 @@ public class VaultIdentifier : IComparable<VaultIdentifier>, IEquatable<VaultIde
         typeof(TProtected).FullName!
     );
     
-    public static VaultIdentifier Create<TAttribute, TProtected>(string? name) => new(
+    public static VaultIdentifier Create<TAttribute, TProtected>(string name) => new(
         name ?? NameFromTypes<TAttribute, TProtected>(),
         typeof(TAttribute).FullName!,
         typeof(TProtected).FullName!
     );
     
-    public static VaultIdentifier Create(string? name, Type attributeType, Type protectedType) => new(
+    public static VaultIdentifier Create(string name, Type attributeType, Type protectedType) => new(
         name ?? NameFromTypes(attributeType, protectedType),
         attributeType.FullName!,
         protectedType.FullName!
@@ -49,14 +49,14 @@ public class VaultIdentifier : IComparable<VaultIdentifier>, IEquatable<VaultIde
     private static string NameFromTypes(Type attributeType, Type protectedType) => attributeType.FullName + '|' + protectedType.FullName;
     private static string NameFromTypes<TAttribute, TProtected>() => NameFromTypes(typeof(TAttribute), typeof(TProtected));
 
-    public bool Equals(VaultIdentifier? other)
+    public bool Equals(VaultIdentifier other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Name == other.Name && AttributeTypeName == other.AttributeTypeName && ProtectedTypeName == other.ProtectedTypeName;
     }
 
-    public override bool Equals(object? obj)
+    public override bool Equals(object obj)
     {
         if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
@@ -69,14 +69,14 @@ public class VaultIdentifier : IComparable<VaultIdentifier>, IEquatable<VaultIde
         return HashCode.Combine(Name, AttributeTypeName, ProtectedTypeName);
     }
 
-    public int CompareTo(VaultIdentifier? other)
+    public int CompareTo(VaultIdentifier other)
     {
         if (ReferenceEquals(this, other)) return 0;
         if (other is null) return 1;
         return string.Compare(Name, other.Name, StringComparison.Ordinal);
     }
 
-    public int CompareTo(object? obj)
+    public int CompareTo(object obj)
     {
         if (obj is null) return 1;
         if (ReferenceEquals(this, obj)) return 0;

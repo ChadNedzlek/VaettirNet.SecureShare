@@ -1,4 +1,7 @@
+using System;
 using FluentAssertions;
+using NUnit.Framework;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.SecureShare.Tests;
 
@@ -9,8 +12,8 @@ public class MessageAlgoritmTest
     {
         VaultCryptographyAlgorithm alg = new();
         
-        alg.Create(Guid.NewGuid(), out PrivateClientInfo private1, out PublicClientInfo public1);
-        alg.Create(Guid.NewGuid(), out PrivateClientInfo private2, out PublicClientInfo public2);
+        alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo private1, out PublicKeyInfo public1);
+        alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo private2, out PublicKeyInfo public2);
 
         byte[] encrypted = new byte[500];
         ReadOnlySpan<byte> inputText = "Test String"u8;

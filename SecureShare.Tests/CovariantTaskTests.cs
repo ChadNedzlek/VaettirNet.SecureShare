@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
+using NUnit.Framework;
 using VaettirNet.Threading.Tasks;
 
 namespace VaettirNet.SecureShare.Tests;

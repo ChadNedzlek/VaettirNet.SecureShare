@@ -1,3 +1,4 @@
+using System;
 using VaettirNet.PackedBinarySerialization.Attributes;
 
 namespace VaettirNet.TreeFormat.Tests;
@@ -6,4 +7,9 @@ namespace VaettirNet.TreeFormat.Tests;
 internal class TestNodeValue : NodeValue
 {
     public required int Member { get; init; }
+    public override bool TryGetDataToSign(Span<byte> destination, out int cb)
+    {
+        cb = 0;
+        return true;
+    }
 }

@@ -10,25 +10,25 @@ public static class ProtectedData
     private const int ERROR_FILE_NOT_FOUND = 2;
     private static readonly byte[] s_nonEmpty = new byte[1];
 
-    public static byte[] Protect(byte[] userData, byte[]? optionalEntropy, DataProtectionScope scope)
+    public static byte[] Protect(byte[] userData, byte[] optionalEntropy, DataProtectionScope scope)
     {
         CheckPlatformSupport();
 
         if (userData is null)
             throw new ArgumentNullException(nameof(userData));
 
-        TryProtectOrUnprotect(userData, optionalEntropy, default, scope, true, true, out byte[]? buffer, out _);
+        TryProtectOrUnprotect(userData, optionalEntropy, default, scope, true, true, out byte[] buffer, out _);
         return buffer!;
     }
 
-    public static byte[] Unprotect(byte[] encryptedData, byte[]? optionalEntropy, DataProtectionScope scope)
+    public static byte[] Unprotect(byte[] encryptedData, byte[] optionalEntropy, DataProtectionScope scope)
     {
         CheckPlatformSupport();
 
         if (encryptedData is null)
             throw new ArgumentNullException(nameof(encryptedData));
 
-        TryProtectOrUnprotect(encryptedData, optionalEntropy, default, scope, false, true, out byte[]? buffer, out _);
+        TryProtectOrUnprotect(encryptedData, optionalEntropy, default, scope, false, true, out byte[] buffer, out _);
         return buffer!;
     }
 
@@ -93,7 +93,7 @@ public static class ProtectedData
         DataProtectionScope scope,
         bool protect,
         bool allocate,
-        out byte[]? newBuffer,
+        out byte[] newBuffer,
         out int bytesWritten
     )
     {
@@ -118,14 +118,14 @@ public static class ProtectedData
                 try
                 {
                     bool success = protect
-                        ? Interop.Crypt32.CryptProtectData(ref userDataBlob,
+                        ? Interop.Crypt32.CryptProtectData(in userDataBlob,
                             null,
                             ref optionalEntropyBlob,
                             IntPtr.Zero,
                             IntPtr.Zero,
                             flags,
                             out outputBlob)
-                        : Interop.Crypt32.CryptUnprotectData(ref userDataBlob,
+                        : Interop.Crypt32.CryptUnprotectData(in userDataBlob,
                             IntPtr.Zero,
                             ref optionalEntropyBlob,
                             IntPtr.Zero,

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using VaettirNet.SecureShare.Common;
+using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.SecureShare.Vaults.Conflict;
 
@@ -8,14 +10,14 @@ public class ClientConflictItem : VaultConflictItem
 {
     public readonly Guid Id;
     public readonly string Description;
-    public readonly VaultClientEntry? BaseEntry;
+    public readonly VaultClientEntry BaseEntry;
     public readonly OneOf<VaultClientEntry, BlockedVaultClientEntry> Remote;
     public readonly OneOf<VaultClientEntry, BlockedVaultClientEntry> Local;
     public readonly ImmutableList<Validated<ClientModificationRecord>> RemoteModifications;
     public readonly ImmutableList<Validated<ClientModificationRecord>> LocalModifications;
 
     public ClientConflictItem(
-        VaultClientEntry? baseEntry,
+        VaultClientEntry baseEntry,
         OneOf<VaultClientEntry, BlockedVaultClientEntry> remote,
         OneOf<VaultClientEntry, BlockedVaultClientEntry> local,
         ImmutableList<Validated<ClientModificationRecord>> remoteModifications,
@@ -37,7 +39,7 @@ public class ClientConflictItem : VaultConflictItem
         return false;
     }
 
-    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem? resolution, VaultCryptographyAlgorithm algorithm)
+    public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem resolution, VaultCryptographyAlgorithm algorithm)
     {
         LiveVaultData data = liveVault;
         if (resolution == VaultResolutionItem.AcceptLocal)
@@ -98,12 +100,12 @@ public class ClientConflictItem : VaultConflictItem
 
     public class NoConflictItem : VaultConflictItem
     {
-        public readonly VaultClientEntry? BaseEntry;
+        public readonly VaultClientEntry BaseEntry;
         public readonly OneOf<VaultClientEntry, BlockedVaultClientEntry> Updated;
         public readonly ImmutableList<Validated<ClientModificationRecord>> Modifications;
 
         public NoConflictItem(
-            VaultClientEntry? baseEntry,
+            VaultClientEntry baseEntry,
             OneOf<VaultClientEntry, BlockedVaultClientEntry> updated,
             ImmutableList<Validated<ClientModificationRecord>> modifications
         )
@@ -119,17 +121,17 @@ public class ClientConflictItem : VaultConflictItem
             return true;
         }
 
-        public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem? resolution, VaultCryptographyAlgorithm algorithm)
+        public override bool TryApplyTo(ref LiveVaultData liveVault, VaultResolutionItem resolution, VaultCryptographyAlgorithm algorithm)
         {
             Accept(liveVault, algorithm, Updated, Modifications);
             return true;
         }
     }
 
-    public static NoConflictItem Added(VaultClientEntry? baseEntry, VaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
+    public static NoConflictItem Added(VaultClientEntry baseEntry, VaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
         new(baseEntry, newEntry, modifications);
-    public static NoConflictItem Updated(VaultClientEntry? baseEntry, VaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
+    public static NoConflictItem Updated(VaultClientEntry baseEntry, VaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
         new(baseEntry, newEntry, modifications);
-    public static NoConflictItem Removed(VaultClientEntry? baseEntry, BlockedVaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
+    public static NoConflictItem Removed(VaultClientEntry baseEntry, BlockedVaultClientEntry newEntry, ImmutableList<Validated<ClientModificationRecord>> modifications) =>
         new(baseEntry, newEntry, modifications);
 }
