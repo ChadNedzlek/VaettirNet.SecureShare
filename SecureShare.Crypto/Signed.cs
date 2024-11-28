@@ -32,6 +32,11 @@ public class Signed<T> : IBinarySerializable<Signed<T>>
     {
         return _payload;
     }
+
+    public override string ToString()
+    {
+        return $"{_payload} (Signed by {Signer})";
+    }
 }
 
 public static class Signed

@@ -174,7 +174,7 @@ public ref partial struct PackedBinaryReader<TReader>
             scoped ref PackedBinaryReader<TReader> reader
         )
         {
-            var refCtor = key.derivedType
+            ConstructorInfo? refCtor = key.derivedType
                 .GetConstructors(BindingFlags.Instance | BindingFlags.Public)
                 .Select(c => (ctor: c, attr: c.GetCustomAttribute<PackedBinaryConstructorAttribute>()))
                 .FirstOrDefault(c => c.attr is not null)
@@ -211,7 +211,7 @@ public ref partial struct PackedBinaryReader<TReader>
                 out List<MemberInfo> inCtor
             )
             {
-                var attr = reader.GetEffectiveTypeAttribute(targetType);
+                PackedBinarySerializableAttribute? attr = reader.GetEffectiveTypeAttribute(targetType);
                 IEnumerable<MemberInfo> targetMembers = targetType.GetMembers(
                         BindingFlags.Instance | BindingFlags.Public | (attr.IncludeNonPublic ? BindingFlags.NonPublic : 0)
                     )
@@ -234,9 +234,9 @@ public ref partial struct PackedBinaryReader<TReader>
                 MemberInfo? lastMember = null;
                 List<(MemberInfo member, Type type, ParameterInfo parameter, int serializedIndex)> ctorMembers = [];
 
-                foreach (var parameter in constructorInfo.GetParameters())
+                foreach (ParameterInfo? parameter in constructorInfo.GetParameters())
                 {
-                    var matched = typedMembers.Where(m => MemberNameComparer.Default.Equals(m.member.Name, parameter.Name) && m.type.IsAssignableTo(parameter.ParameterType)).ToList();
+                    List<(MemberInfo member, Type type, int index)>? matched = typedMembers.Where(m => MemberNameComparer.Default.Equals(m.member.Name, parameter.Name) && m.type.IsAssignableTo(parameter.ParameterType)).ToList();
                     (MemberInfo member, Type type, int index) = matched switch
                     {
                         [] => throw new ArgumentException($"Parameter {parameter.Name} does not match any serializable fields"),
@@ -253,7 +253,7 @@ public ref partial struct PackedBinaryReader<TReader>
                     ctorMembers.Add((member, type, parameter, index));
                 }
 
-                foreach (var serializedMembers in typedMembers)
+                foreach ((MemberInfo member, Type type, int index) serializedMembers in typedMembers)
                 {
                     if (serializedMembers.index < maxMemberIndex && ctorMembers.All(p => p.member != serializedMembers.member))
                     {
@@ -263,8 +263,8 @@ public ref partial struct PackedBinaryReader<TReader>
                     }
                 }
 
-                var serializedOrder = ctorMembers.OrderBy(m => m.serializedIndex).ToList();
-                var parameterOrder = ctorMembers.OrderBy(m => m.parameter.Position);
+                List<(MemberInfo member, Type type, ParameterInfo parameter, int serializedIndex)>? serializedOrder = ctorMembers.OrderBy(m => m.serializedIndex).ToList();
+                IOrderedEnumerable<(MemberInfo member, Type type, ParameterInfo parameter, int serializedIndex)>? parameterOrder = ctorMembers.OrderBy(m => m.parameter.Position);
 
                 DynamicMethod callCtor = new(
                     $"Construct_{targetType.Name}_As_{returnAs.Name}",
@@ -272,7 +272,7 @@ public ref partial struct PackedBinaryReader<TReader>
                     [typeof(PackedBinaryReader<TReader>).MakeByRefType(), typeof(PackedBinarySerializationContext)]
                 );
                 
-                var il = callCtor.GetILGenerator();
+                ILGenerator? il = callCtor.GetILGenerator();
 
                 Dictionary<ParameterInfo, int> localIndex = new Dictionary<ParameterInfo, int>();
 

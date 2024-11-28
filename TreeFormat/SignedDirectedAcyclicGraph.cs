@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Crypto;
@@ -12,15 +13,19 @@ public class SignedDirectedAcyclicGraph
     
     public SignedDirectedAcyclicGraph(Validated<NodeRecord> record, TrustedPublicKeys trustedPublicKeys)
     {
-        Root = new SignedRecordNode(record, trustedPublicKeys, 0);
+        Root = new SignedRecordNode(record, trustedPublicKeys, 0, []);
+    }
+    
+    public SignedDirectedAcyclicGraph(NodeValue value, TrustedPublicKeys trustedPublicKeys)
+    {
+        Root = new SignedRecordNode(value, trustedPublicKeys, 0);
     }
 
     public Node Root { get; }
 
     public Node CreateNode(Validated<NodeRecord> record, TrustedPublicKeys trustedPublicKeys, params IEnumerable<Node> parents)
     {
-        SignedRecordNode node = new(record, trustedPublicKeys, Count++);
-        AddNode(node, parents);
+        SignedRecordNode node = new(record, trustedPublicKeys, Count++, parents);
         return node;
     }
 
@@ -66,10 +71,16 @@ public class SignedDirectedAcyclicGraph
         private List<SignedRecordNode> _parents;
         private Validated<NodeRecord> _record;
         private readonly NodeValue _value;
+        private bool _recordValid = false;
 
-        public SignedRecordNode(Validated<NodeRecord> record, TrustedPublicKeys trustedKeys, int index) : base(trustedKeys, index)
+        public SignedRecordNode(Validated<NodeRecord> record, TrustedPublicKeys trustedKeys, int index, IEnumerable<Node> parents) : base(trustedKeys, index)
         {
             _value = record.Value.Value;
+            foreach (Node node in parents)
+            {
+                SignedRecordNode parent = (SignedRecordNode)node;
+                parent.AddChild(this);
+            }
             _record = record;
         }
         
@@ -89,14 +100,27 @@ public class SignedDirectedAcyclicGraph
                 return _record;
             }
 
-            return algorithm.Sign(new NodeRecord(_value, Parents.Select(p => p.ToRecord(signer, algorithm).Signature)), signer);
+            return _record = algorithm.Sign(new NodeRecord(_value, Parents.Select(p => p.ToRecord(signer, algorithm).Signature)), signer);
         }
 
         public void AddChild(SignedRecordNode child)
         {
-            _record = default;
             (_children ??= []).Add(child);
             (child._parents ??= []).Add(this);
+            
+            
+            // Parents are part of the signature, so adding a child invalidates it
+            child._record = default;
+        }
+
+        public override string ToString()
+        {
+            if (_record.IsEmpty)
+            {
+                return $"{Index} : pending = {Value}";
+            }
+
+            return $"{Index} : {Convert.ToBase64String(_record.Signature.Span)} = {Value}";
         }
     }
 

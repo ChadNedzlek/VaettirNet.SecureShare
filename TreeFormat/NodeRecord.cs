@@ -42,4 +42,9 @@ public sealed class NodeRecord : ISignable
         cb += cbValue;
         return true;
     }
+
+    public override string ToString()
+    {
+        return $"[{ParentSignatures.Length}] = {Value}";
+    }
 }

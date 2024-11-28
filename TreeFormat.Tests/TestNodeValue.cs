@@ -12,4 +12,9 @@ internal class TestNodeValue : NodeValue
         cb = 0;
         return true;
     }
+
+    public override string ToString()
+    {
+        return Member.ToString();
+    }
 }

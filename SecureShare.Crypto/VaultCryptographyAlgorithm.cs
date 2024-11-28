@@ -71,7 +71,7 @@ public class VaultCryptographyAlgorithm
 
     public void CreateKeys(Guid clientId, out PrivateKeyInfo privateInfo, out PublicKeyInfo publicInfo)
     {
-        using ECDiffieHellman enc = ECDiffieHellman.Create();
+        using ECDiffieHellman enc = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
         using RentedSpan<byte> encryptionPrivateBytes = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
             (Span<byte> span, out int cb) => enc.TryExportPkcs8PrivateKey(span, out cb),
@@ -84,7 +84,7 @@ public class VaultCryptographyAlgorithm
             ArrayPool<byte>.Shared
         );
 
-        using ECDsa sign = ECDsa.Create();
+        using ECDsa sign = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using RentedSpan<byte> signingPrivateKeyBytes = SpanHelpers.GrowingSpan(
             stackalloc byte[200],
             (Span<byte> span, out int cb) => sign.TryExportPkcs8PrivateKey(span, out cb),
@@ -124,7 +124,7 @@ public class VaultCryptographyAlgorithm
     {
         ECDsa dsa = ECDsa.Create();
         dsa.ImportPkcs8PrivateKey(privateInfo.SigningKey.Span, out _);
-        byte[] signature = dsa.SignData(data, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+        byte[] signature = dsa.SignData(data, HashAlgorithmName.SHA256);
         return signature;
     }
 
@@ -140,7 +140,7 @@ public class VaultCryptographyAlgorithm
             (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
             ArrayPool<byte>.Shared);
 
-        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256))
         {
             validated = default;
             return false;
@@ -162,7 +162,7 @@ public class VaultCryptographyAlgorithm
             (Span<byte> span, out int cb) => unvalidated.TryGetDataToSign(span, out cb),
             ArrayPool<byte>.Shared);
 
-        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
+        if (!dsa.VerifyData(data.Span, signed.Signature.Span, HashAlgorithmName.SHA256))
         {
             payload = default;
             return false;

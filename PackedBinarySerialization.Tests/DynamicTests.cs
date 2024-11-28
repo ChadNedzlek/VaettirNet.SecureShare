@@ -161,9 +161,9 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
-        var input = new FullCtorType(0x55, 0x66);
+        FullCtorType input = new FullCtorType(0x55, 0x66);
         s.Serialize(buffer, input, options);
-        var roundTripped = s.Deserialize<FullCtorType>(buffer.WrittenSpan, options);
+        FullCtorType roundTripped = s.Deserialize<FullCtorType>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input);
     }
     
@@ -174,9 +174,9 @@ public class DynamicTests
         PackedBinarySerializer s = new();
         ArrayBufferWriter<byte> buffer = new ArrayBufferWriter<byte>(1000);
         PackedBinarySerializationOptions options = new(UsePackedEncoding: packed);
-        var input = new PartialCtorType(0x55, 0x66){ Delayed = 0x44};
+        PartialCtorType input = new PartialCtorType(0x55, 0x66){ Delayed = 0x44};
         s.Serialize(buffer, input, options);
-        var roundTripped = s.Deserialize<PartialCtorType>(buffer.WrittenSpan, options);
+        PartialCtorType roundTripped = s.Deserialize<PartialCtorType>(buffer.WrittenSpan, options);
         roundTripped.Should().BeEquivalentTo(input);
     }
 

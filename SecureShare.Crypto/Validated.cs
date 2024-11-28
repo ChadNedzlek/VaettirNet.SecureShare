@@ -38,6 +38,11 @@ public readonly struct Validated<T>
         validated = default;
         return false;
     }
+    
+    public override string ToString()
+    {
+        return $"{_value.DangerousGetPayload()} (Validated signed by {Signer})";
+    }
 
     internal static Validated<T> AssertValid(Signed<T> signed) => new(signed);
     

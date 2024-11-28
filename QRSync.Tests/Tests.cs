@@ -22,7 +22,7 @@ public class Tests
     [SupportedOSPlatform("windows")]
     public void ReadKnownEmbeddedQrCode()
     {
-        var ns = Reflections.CurrentType().Namespace;
+        string ns = Reflections.CurrentType().Namespace;
         using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(Reflections.CurrentType().Namespace + ".Resources.qrcode.png")!;
         IReadOnlyList<ReadOnlyMemory<byte>> res = QrCodeReader.GetCodesFromImage(stream);
         ReadOnlyMemory<byte> bytes = res.Should().ContainSingle().Subject;

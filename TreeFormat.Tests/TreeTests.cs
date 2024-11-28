@@ -18,22 +18,23 @@ public class TreeTests
         alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo privateInfo, out PublicKeyInfo publicInfo);
         TrustedPublicKeys keys = new TrustedPublicKeys().With(publicInfo);
         SignedDirectedAcyclicGraph directedAcyclicGraph = new(CreateRecord(5), keys);
-        var root = directedAcyclicGraph.Root;
-        var left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys);
-        var left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys);
-        var rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys);
-        var another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys);
+        SignedDirectedAcyclicGraph.Node root = directedAcyclicGraph.Root;
+        SignedDirectedAcyclicGraph.Node left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
+        SignedDirectedAcyclicGraph.Node left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
+        SignedDirectedAcyclicGraph.Node rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
+        SignedDirectedAcyclicGraph.Node another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
         MemoryStream s = new();
         await builder.WriteTreeAsync(directedAcyclicGraph, s, privateInfo, alg);
         s.Flush();
         s.Position = 0;
-        var roundTripped = await builder.ReadTreeAsync(s, (_, _) => keys, alg);
-        roundTripped.Root.Should().BeEquivalentTo(directedAcyclicGraph.Root);
+        SignedDirectedAcyclicGraph roundTripped = await builder.ReadTreeAsync(s, (_, _) => keys, alg);
+        roundTripped.Root.Should()
+            .BeEquivalentTo(
+                directedAcyclicGraph.Root,
+                o => o.IgnoringCyclicReferences()
+            );
 
-        Validated<NodeRecord> CreateRecord(int value)
-        {
-            return alg.Sign(new NodeRecord(new TestNodeValue { Member = value }), privateInfo);
-        }
+        TestNodeValue CreateRecord(int value) => new() { Member = value };
     }
     
     [Test]
@@ -44,27 +45,35 @@ public class TreeTests
         VaultCryptographyAlgorithm alg = new();
         alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo privateInfo, out PublicKeyInfo publicInfo);
         TrustedPublicKeys keys = new TrustedPublicKeys().With(publicInfo);
-        SignedDirectedAcyclicGraph directedAcyclicGraph = new(CreateRecord(5), keys);
-        var root = directedAcyclicGraph.Root;
-        var left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys);
-        var left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys);
-        var rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys);
-        var another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys);
+        SignedDirectedAcyclicGraph directedAcyclicGraph = MakeGraph(keys);
         MemoryStream s = new();
         await builder.WriteTreeAsync(directedAcyclicGraph, s, privateInfo, alg);
+        byte[] originalBytes = s.ToArray();
         s.Flush();
         s.Position = 0;
-        var originalBytes = s.ToArray();
-        var roundTripped = await builder.ReadTreeAsync(s, (_, _) => keys, alg);
+        SignedDirectedAcyclicGraph roundTripped = await builder.ReadTreeAsync(s, (_, _) => keys, alg);
         s.Flush();
         s.Position = 0;
         await builder.WriteTreeAsync(roundTripped, s, privateInfo, alg);
-        var rewrittenBytes = s.ToArray();
+        byte[] rewrittenBytes = s.ToArray();
+        
+        roundTripped.Root.Should()
+            .BeEquivalentTo(
+                directedAcyclicGraph.Root,
+                o => o.IgnoringCyclicReferences()
+            );
         rewrittenBytes.Should().BeEquivalentTo(originalBytes);
+    }
 
-        Validated<NodeRecord> CreateRecord(int value)
-        {
-            return alg.Sign(new NodeRecord(new TestNodeValue { Member = value }), privateInfo);
-        }
+    private static SignedDirectedAcyclicGraph MakeGraph(TrustedPublicKeys keys)
+    {
+        SignedDirectedAcyclicGraph directedAcyclicGraph = new(CreateRecord(5), keys);
+        SignedDirectedAcyclicGraph.Node root = directedAcyclicGraph.Root;
+        SignedDirectedAcyclicGraph.Node left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
+        SignedDirectedAcyclicGraph.Node left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
+        SignedDirectedAcyclicGraph.Node rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
+        SignedDirectedAcyclicGraph.Node another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
+        return directedAcyclicGraph;
+        TestNodeValue CreateRecord(int value) => new() { Member = value };
     }
 }

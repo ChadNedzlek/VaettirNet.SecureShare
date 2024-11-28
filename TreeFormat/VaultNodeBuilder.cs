@@ -29,16 +29,17 @@ public class VaultNodeBuilder
         }
     }
 
-    public SignedDirectedAcyclicGraph BuildTree(
-        IEnumerable<Signed<NodeRecord>> records,
+    private SignedDirectedAcyclicGraph BuildTree(
+        IReadOnlyList<Signed<NodeRecord>> records,
         Func<IReadOnlyList<SignedDirectedAcyclicGraph.Node>, NodeValue, TrustedPublicKeys> establishTrust,
         VaultCryptographyAlgorithm alg
     )
     {
         Dictionary<ReadOnlyMemory<byte>, SignedDirectedAcyclicGraph.Node> nodes = new(MemoryComparer<byte>.Default);
         SignedDirectedAcyclicGraph directedAcyclicGraph = null;
-        foreach (Signed<NodeRecord> signed in records)
+        for (int i = 0; i < records.Count; i++)
         {
+            Signed<NodeRecord> signed = records[i];
             NodeRecord record = signed.DangerousGetPayload();
             List<SignedDirectedAcyclicGraph.Node> parents = record.ParentSignatures.Select(sig => nodes[sig]).ToList();
 
@@ -52,9 +53,14 @@ public class VaultNodeBuilder
             else
             {
                 if (parents.Count == 0) throw new ArgumentException("Multiple root nodes detected", nameof(nodes));
-                
-                newNode = directedAcyclicGraph.CreateNode(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
+
+                newNode = directedAcyclicGraph.CreateNode(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys, parents);
             }
+
+            if (newNode.Index != i)
+            {
+            }
+
             nodes.Add(signed.Signature, newNode);
         }
 
@@ -101,7 +107,7 @@ public class VaultNodeBuilder
             }
         }
 
-        var nodeList = allNodes.OrderBy(n => n.Index).Select(n => n.ToRecord(privateKeyInfo, algorithm).Signed);
+        List<Signed<NodeRecord>> nodeList = allNodes.OrderBy(n => n.Index).Select(n => n.ToRecord(privateKeyInfo, algorithm).Signed).ToList();
         PackedBinarySerializer s = GetSerializer();
         s.Serialize(destination, nodeList, new PackedBinarySerializationOptions(ImplicitRepeat: true));
         return Task.CompletedTask;
