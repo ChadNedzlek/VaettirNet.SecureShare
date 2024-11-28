@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VaettirNet.PackedBinarySerialization;
+using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
@@ -28,38 +29,38 @@ public class VaultNodeBuilder
         }
     }
 
-    public SignedTree BuildTree(
+    public SignedDirectedAcyclicGraph BuildTree(
         IEnumerable<Signed<NodeRecord>> records,
-        Func<IReadOnlyList<SignedTree.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        Func<IReadOnlyList<SignedDirectedAcyclicGraph.Node>, NodeValue, TrustedPublicKeys> establishTrust,
         VaultCryptographyAlgorithm alg
     )
     {
-        Dictionary<SignedTree.NodeId, SignedTree.Node> nodes = new();
-        SignedTree tree = null;
+        Dictionary<ReadOnlyMemory<byte>, SignedDirectedAcyclicGraph.Node> nodes = new(MemoryComparer<byte>.Default);
+        SignedDirectedAcyclicGraph directedAcyclicGraph = null;
         foreach (Signed<NodeRecord> signed in records)
         {
             NodeRecord record = signed.DangerousGetPayload();
-            List<SignedTree.Node> parents = record.ParentSignatures.Select(sig => nodes[new (sig)]).ToList();
+            List<SignedDirectedAcyclicGraph.Node> parents = record.ParentSignatures.Select(sig => nodes[sig]).ToList();
 
             TrustedPublicKeys keys = establishTrust(parents, record.Value);
-            SignedTree.Node newNode;
-            if (tree is null)
+            SignedDirectedAcyclicGraph.Node newNode;
+            if (directedAcyclicGraph is null)
             {
-                tree = new SignedTree(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
-                newNode = tree.Root;
+                directedAcyclicGraph = new SignedDirectedAcyclicGraph(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
+                newNode = directedAcyclicGraph.Root;
             }
             else
             {
                 if (parents.Count == 0) throw new ArgumentException("Multiple root nodes detected", nameof(nodes));
                 
-                newNode = tree.CreateNode(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys, parents);
+                newNode = directedAcyclicGraph.CreateNode(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
             }
-            nodes.Add(newNode.Id, newNode);
+            nodes.Add(signed.Signature, newNode);
         }
 
-        if (tree is null) throw new ArgumentException("No root node detected", nameof(nodes));
+        if (directedAcyclicGraph is null) throw new ArgumentException("No root node detected", nameof(nodes));
 
-        return tree;
+        return directedAcyclicGraph;
     }
 
     public VaultNodeBuilder AddNodeType<T>()
@@ -68,9 +69,9 @@ public class VaultNodeBuilder
         return this;
     }
 
-    public Task<SignedTree> ReadTreeAsync(
+    public Task<SignedDirectedAcyclicGraph> ReadTreeAsync(
         Stream source,
-        Func<IReadOnlyList<SignedTree.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        Func<IReadOnlyList<SignedDirectedAcyclicGraph.Node>, NodeValue, TrustedPublicKeys> establishTrust,
         VaultCryptographyAlgorithm alg
     )
     {
@@ -79,23 +80,28 @@ public class VaultNodeBuilder
         return Task.FromResult(BuildTree(records, establishTrust, alg));
     }
 
-    public Task WriteTreeAsync(SignedTree tree, Stream destination)
+    public Task WriteTreeAsync(
+        SignedDirectedAcyclicGraph directedAcyclicGraph,
+        Stream destination,
+        PrivateKeyInfo privateKeyInfo,
+        VaultCryptographyAlgorithm algorithm
+    )
     {
         Initialize();
-        HashSet<SignedTree.Node> allNodes = [];
-        Queue<SignedTree.Node> scan = new([tree.Root]);
-        while (scan.TryDequeue(out SignedTree.Node node))
+        HashSet<SignedDirectedAcyclicGraph.Node> allNodes = [];
+        Queue<SignedDirectedAcyclicGraph.Node> scan = new([directedAcyclicGraph.Root]);
+        while (scan.TryDequeue(out SignedDirectedAcyclicGraph.Node node))
         {
-            if (allNodes.Add(node))
+            if (allNodes.Add(node)) 
             {
-                foreach (SignedTree.Node child in node.Children)
+                foreach (SignedDirectedAcyclicGraph.Node child in node.Children)
                 {
                     scan.Enqueue(child);
                 }
             }
         }
 
-        var nodeList = allNodes.OrderBy(n => n.Index).Select(n => n.ToRecord().Signed);
+        var nodeList = allNodes.OrderBy(n => n.Index).Select(n => n.ToRecord(privateKeyInfo, algorithm).Signed);
         PackedBinarySerializer s = GetSerializer();
         s.Serialize(destination, nodeList, new PackedBinarySerializationOptions(ImplicitRepeat: true));
         return Task.CompletedTask;

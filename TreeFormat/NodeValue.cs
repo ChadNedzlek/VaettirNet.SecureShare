@@ -4,6 +4,9 @@ using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
 
+/// <summary>
+/// Base class for NodeValue. Should be immutable.
+/// </summary>
 [PackedBinarySerializable]
 public abstract class NodeValue : ISignable
 {
