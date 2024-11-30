@@ -7,7 +7,7 @@ using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat.Tests;
 
-public class TreeTests
+public class DagTests
 {
     [Test]
     public async Task RoundTripTree()
@@ -18,11 +18,11 @@ public class TreeTests
         alg.CreateKeys(Guid.NewGuid(), out PrivateKeyInfo privateInfo, out PublicKeyInfo publicInfo);
         TrustedPublicKeys keys = new TrustedPublicKeys().With(publicInfo);
         SignedDirectedAcyclicGraph directedAcyclicGraph = new(CreateRecord(5), keys);
-        SignedDirectedAcyclicGraph.Node root = directedAcyclicGraph.Root;
-        SignedDirectedAcyclicGraph.Node left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
-        SignedDirectedAcyclicGraph.Node left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
-        SignedDirectedAcyclicGraph.Node rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
-        SignedDirectedAcyclicGraph.Node another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
+        DagNode root = directedAcyclicGraph.Root;
+        DagNode left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
+        DagNode left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
+        DagNode rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
+        DagNode another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
         MemoryStream s = new();
         await builder.WriteTreeAsync(directedAcyclicGraph, s, privateInfo, alg);
         s.Flush();
@@ -68,11 +68,11 @@ public class TreeTests
     private static SignedDirectedAcyclicGraph MakeGraph(TrustedPublicKeys keys)
     {
         SignedDirectedAcyclicGraph directedAcyclicGraph = new(CreateRecord(5), keys);
-        SignedDirectedAcyclicGraph.Node root = directedAcyclicGraph.Root;
-        SignedDirectedAcyclicGraph.Node left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
-        SignedDirectedAcyclicGraph.Node left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
-        SignedDirectedAcyclicGraph.Node rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
-        SignedDirectedAcyclicGraph.Node another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
+        DagNode root = directedAcyclicGraph.Root;
+        DagNode left1 = directedAcyclicGraph.CreateNode(CreateRecord(-7), keys, root);
+        DagNode left2 = directedAcyclicGraph.CreateNode(CreateRecord(-70), keys, left1);
+        DagNode rl = directedAcyclicGraph.CreateNode(CreateRecord(-30), keys, left1);
+        DagNode another = directedAcyclicGraph.CreateNode(CreateRecord(7), keys, root);
         return directedAcyclicGraph;
         TestNodeValue CreateRecord(int value) => new() { Member = value };
     }

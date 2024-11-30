@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using VaettirNet.SecureShare.Common;
 using VaettirNet.SecureShare.Crypto;
 
 namespace VaettirNet.TreeFormat;
@@ -21,66 +19,47 @@ public class SignedDirectedAcyclicGraph
         Root = new SignedRecordNode(value, trustedPublicKeys, 0);
     }
 
-    public Node Root { get; }
+    public DagNode Root { get; }
 
-    public Node CreateNode(Validated<NodeRecord> record, TrustedPublicKeys trustedPublicKeys, params IEnumerable<Node> parents)
+    public DagNode CreateNode(Validated<NodeRecord> record, TrustedPublicKeys trustedPublicKeys, params IEnumerable<DagNode> parents)
     {
         SignedRecordNode node = new(record, trustedPublicKeys, Count++, parents);
         return node;
     }
 
-    public Node CreateNode(NodeValue value, TrustedPublicKeys trustedPublicKeys, params IEnumerable<Node> parents)
+    public DagNode CreateNode(NodeValue value, TrustedPublicKeys trustedPublicKeys, params IEnumerable<DagNode> parents)
     {
         SignedRecordNode node = new(value, trustedPublicKeys, Count++);
         AddNode(node, parents);
         return node;
     }
 
-    public void AddNode(Node child, params IEnumerable<Node> parents)
+    public void AddNode(DagNode child, params IEnumerable<DagNode> parents)
     {
         SignedRecordNode signedChild = (SignedRecordNode)child;
-        foreach (Node node in parents)
+        foreach (DagNode node in parents)
         {
             SignedRecordNode parent = (SignedRecordNode)node;
             parent.AddChild(signedChild);
         }
     }
 
-    public abstract class Node
-    {
-        protected Node(TrustedPublicKeys trustedKeys, int index)
-        {
-            TrustedKeys = trustedKeys;
-            Index = index;
-        }
-
-        public abstract NodeValue Value { get; }
-        public TrustedPublicKeys TrustedKeys { get; }
-
-        public abstract IReadOnlyList<Node> Parents { get; }
-        public abstract IReadOnlyList<Node> Children { get; }
-        
-        public int Index { get; }
-
-        public abstract Validated<NodeRecord> ToRecord(PrivateKeyInfo signer, VaultCryptographyAlgorithm algorithm);
-    }
-
-    private class SignedRecordNode : Node
+    private class SignedRecordNode : DagNode
     {
         private List<SignedRecordNode> _children;
         private List<SignedRecordNode> _parents;
         private Validated<NodeRecord> _record;
         private readonly NodeValue _value;
-        private bool _recordValid = false;
 
-        public SignedRecordNode(Validated<NodeRecord> record, TrustedPublicKeys trustedKeys, int index, IEnumerable<Node> parents) : base(trustedKeys, index)
+        public SignedRecordNode(Validated<NodeRecord> record, TrustedPublicKeys trustedKeys, int index, IEnumerable<DagNode> parents) : base(trustedKeys, index)
         {
             _value = record.Value.Value;
-            foreach (Node node in parents)
+            foreach (DagNode node in parents)
             {
                 SignedRecordNode parent = (SignedRecordNode)node;
                 parent.AddChild(this);
             }
+            // This needs to be set after the children are added, because adding a parent deletes _record
             _record = record;
         }
         
@@ -90,8 +69,8 @@ public class SignedDirectedAcyclicGraph
         }
         
         public override NodeValue Value => _value;
-        public override IReadOnlyList<Node> Parents => (IReadOnlyList<Node>)_parents?.AsReadOnly() ?? Array.Empty<Node>();
-        public override IReadOnlyList<Node> Children => (IReadOnlyList<Node>)_children?.AsReadOnly() ?? Array.Empty<Node>();
+        public override IReadOnlyList<DagNode> Parents => (IReadOnlyList<DagNode>)_parents?.AsReadOnly() ?? Array.Empty<DagNode>();
+        public override IReadOnlyList<DagNode> Children => (IReadOnlyList<DagNode>)_children?.AsReadOnly() ?? Array.Empty<DagNode>();
         
         public override Validated<NodeRecord> ToRecord(PrivateKeyInfo signer, VaultCryptographyAlgorithm algorithm)
         {
@@ -108,7 +87,6 @@ public class SignedDirectedAcyclicGraph
             (_children ??= []).Add(child);
             (child._parents ??= []).Add(this);
             
-            
             // Parents are part of the signature, so adding a child invalidates it
             child._record = default;
         }
@@ -123,29 +101,40 @@ public class SignedDirectedAcyclicGraph
             return $"{Index} : {Convert.ToBase64String(_record.Signature.Span)} = {Value}";
         }
     }
+}
 
-    public readonly struct NodeId : IEquatable<NodeId>
+public abstract class DagNode
+{
+    protected DagNode(TrustedPublicKeys trustedKeys, int index)
     {
-        internal NodeId(ReadOnlyMemory<byte> signature)
-        {
-            Signature = signature;
-        }
-
-        internal ReadOnlyMemory<byte> Signature { get; }
-
-        public bool Equals(NodeId other)
-        {
-            return MemoryComparer<byte>.Default.Equals(Signature, other.Signature);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is NodeId other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return MemoryComparer<byte>.Default.GetHashCode(Signature);
-        }
+        TrustedKeys = trustedKeys;
+        Index = index;
     }
+
+    public abstract NodeValue Value { get; }
+    public TrustedPublicKeys TrustedKeys { get; }
+
+    public abstract IReadOnlyList<DagNode> Parents { get; }
+    public abstract IReadOnlyList<DagNode> Children { get; }
+        
+    public int Index { get; }
+
+    public abstract Validated<NodeRecord> ToRecord(PrivateKeyInfo signer, VaultCryptographyAlgorithm algorithm);
+}
+
+public interface ISignedDirectedAcyclicGraphTrustResolver
+{
+    TrustedPublicKeys UpdateTrustedKeys(IReadOnlyList<DagNode> fromNodes, NodeValue value);
+}
+
+public class CallbackTrustResolver : ISignedDirectedAcyclicGraphTrustResolver
+{
+    private readonly Func<IReadOnlyList<DagNode>, NodeValue, TrustedPublicKeys> _callback;
+
+    public CallbackTrustResolver(Func<IReadOnlyList<DagNode>, NodeValue, TrustedPublicKeys> callback)
+    {
+        _callback = callback;
+    }
+
+    public TrustedPublicKeys UpdateTrustedKeys(IReadOnlyList<DagNode> fromNodes, NodeValue value) => _callback(fromNodes, value);
 }

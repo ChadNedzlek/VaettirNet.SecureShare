@@ -31,20 +31,20 @@ public class VaultNodeBuilder
 
     private SignedDirectedAcyclicGraph BuildTree(
         IReadOnlyList<Signed<NodeRecord>> records,
-        Func<IReadOnlyList<SignedDirectedAcyclicGraph.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        ISignedDirectedAcyclicGraphTrustResolver trustResolver,
         VaultCryptographyAlgorithm alg
     )
     {
-        Dictionary<ReadOnlyMemory<byte>, SignedDirectedAcyclicGraph.Node> nodes = new(MemoryComparer<byte>.Default);
+        Dictionary<ReadOnlyMemory<byte>, DagNode> nodes = new(MemoryComparer<byte>.Default);
         SignedDirectedAcyclicGraph directedAcyclicGraph = null;
         for (int i = 0; i < records.Count; i++)
         {
             Signed<NodeRecord> signed = records[i];
             NodeRecord record = signed.DangerousGetPayload();
-            List<SignedDirectedAcyclicGraph.Node> parents = record.ParentSignatures.Select(sig => nodes[sig]).ToList();
+            List<DagNode> parents = record.ParentSignatures.Select(sig => nodes[sig]).ToList();
 
-            TrustedPublicKeys keys = establishTrust(parents, record.Value);
-            SignedDirectedAcyclicGraph.Node newNode;
+            TrustedPublicKeys keys = trustResolver.UpdateTrustedKeys(parents, record.Value);
+            DagNode newNode;
             if (directedAcyclicGraph is null)
             {
                 directedAcyclicGraph = new SignedDirectedAcyclicGraph(signed.Validate(keys.Get(signed.Signer).SigningKey.Span, alg), keys);
@@ -77,13 +77,19 @@ public class VaultNodeBuilder
 
     public Task<SignedDirectedAcyclicGraph> ReadTreeAsync(
         Stream source,
-        Func<IReadOnlyList<SignedDirectedAcyclicGraph.Node>, NodeValue, TrustedPublicKeys> establishTrust,
+        Func<IReadOnlyList<DagNode>, NodeValue, TrustedPublicKeys> establishTrust,
+        VaultCryptographyAlgorithm alg
+    ) => ReadTreeAsync(source, new CallbackTrustResolver(establishTrust), alg); 
+    
+    public Task<SignedDirectedAcyclicGraph> ReadTreeAsync(
+        Stream source,
+        ISignedDirectedAcyclicGraphTrustResolver trustResolver,
         VaultCryptographyAlgorithm alg
     )
     {
         PackedBinarySerializer s = GetSerializer();
         Signed<NodeRecord>[] records = s.Deserialize<Signed<NodeRecord>[]>(source, new PackedBinarySerializationOptions(ImplicitRepeat: true));
-        return Task.FromResult(BuildTree(records, establishTrust, alg));
+        return Task.FromResult(BuildTree(records, trustResolver, alg));
     }
 
     public Task WriteTreeAsync(
@@ -94,13 +100,13 @@ public class VaultNodeBuilder
     )
     {
         Initialize();
-        HashSet<SignedDirectedAcyclicGraph.Node> allNodes = [];
-        Queue<SignedDirectedAcyclicGraph.Node> scan = new([directedAcyclicGraph.Root]);
-        while (scan.TryDequeue(out SignedDirectedAcyclicGraph.Node node))
+        HashSet<DagNode> allNodes = [];
+        Queue<DagNode> scan = new([directedAcyclicGraph.Root]);
+        while (scan.TryDequeue(out DagNode node))
         {
             if (allNodes.Add(node)) 
             {
-                foreach (SignedDirectedAcyclicGraph.Node child in node.Children)
+                foreach (DagNode child in node.Children)
                 {
                     scan.Enqueue(child);
                 }
