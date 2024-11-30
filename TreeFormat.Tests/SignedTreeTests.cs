@@ -30,7 +30,7 @@ public class SignedTreeTests
     }
     
     [Test]
-    public void ConflictLeftOnlyTest()
+    public void ConflictLeftOnly()
     {
         SignedTree tree = BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1);
         var node = GetNode(tree, 22);
@@ -44,7 +44,7 @@ public class SignedTreeTests
     }
     
     [Test]
-    public void ConflictRightOnlyTest()
+    public void ConflictRightOnly()
     {
         SignedTree tree = BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1);
         var node = GetNode(tree, 22);
@@ -58,7 +58,7 @@ public class SignedTreeTests
     }
     
     [Test]
-    public void ConflictLeftThenRightTest()
+    public void ConflictLeftThenRight()
     {
         SignedTree tree = BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1);
         var node = GetNode(tree, 22);
@@ -75,7 +75,7 @@ public class SignedTreeTests
     }
     
     [Test]
-    public void ConflictRightThenLeftTest()
+    public void ConflictRightThenLeft()
     {
         SignedTree tree = BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1);
         var node = GetNode(tree, 22);
@@ -89,6 +89,26 @@ public class SignedTreeTests
         array[4].Value.Should().BeOfType<ValueNode>().Which.Value.Should().Be(21);
         array[5].Value.Should().BeOfType<ValueNode>().Which.Value.Should().Be(20);
         array[6].Value.Should().BeOfType<ValueNode>().Which.Value.Should().Be(1);
+    }
+    
+    [Test]
+    public void MultiBranch()
+    {
+        SignedTree tree = BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1);
+        var node30 = tree.AddValueNode(new ValueNode(30), GetNode(tree, 22));
+        var node31 = tree.AddValueNode(new ValueNode(31), node30);
+        var node32 = tree.AddValueNode(new ValueNode(32), node31);
+        var node40 = tree.AddValueNode(new ValueNode(40), GetNode(tree, 22));
+        var node41 = tree.AddValueNode(new ValueNode(41), node40);
+        var node42 = tree.AddValueNode(new ValueNode(42), node41);
+        var node50 = tree.AddValueNode(new ValueNode(50), GetNode(tree, 22));
+        var node51 = tree.AddValueNode(new ValueNode(51), node50);
+        var node52 = tree.AddValueNode(new ValueNode(52), node51);
+        var topResolution = tree.ResolveConflict(GetNode(tree, 22), GetNode(tree, 32), GetNode(tree, 52), GetNode(tree, 42));
+        var bottomResolution = tree.ResolveConflict(tree.Root, GetNode(tree, 12), topResolution);
+        var node99 = tree.AddValueNode(new ValueNode(99), bottomResolution);
+        var array = tree.GetBranchIteratorFromNodeToRoot(node99).Select(n => ((ValueNode)n.Value).Value).ToArray();
+        array.Should().BeEquivalentTo([99, 42, 41, 40, 52, 51, 50, 32, 31, 30, 22, 21, 20, 1]);
     }
 
     private static SignedTree BuildTree(out VaultCryptographyAlgorithm alg, out PublicKeyInfo pub1)
